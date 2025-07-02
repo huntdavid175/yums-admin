@@ -58,8 +58,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+} from "firebase/firestore";
+import firebaseApp from "../lib/firebase";
 
 import { subscribeUser, unsubscribeUser, sendNotification } from "./actions";
+import Link from "next/link";
 
 // PWA code
 function urlBase64ToUint8Array(base64String: string) {
@@ -180,7 +190,7 @@ function InstallPrompt() {
             {" "}
             ⎋{" "}
           </span>
-          and then "Add to Home Screen"
+          and then &quot;Add to Home Screen&quot;
           <span role="img" aria-label="plus icon">
             {" "}
             ➕{" "}
@@ -191,62 +201,6 @@ function InstallPrompt() {
     </div>
   );
 }
-
-// Mock data updated for delivery/takeaway
-const orders = [
-  {
-    id: "ORD-001",
-    customer: "John Doe",
-    phone: "+1 (555) 123-4567",
-    items: "2x Burger, 1x Fries",
-    total: 24.99,
-    status: "preparing",
-    time: "10 min ago",
-    orderType: "delivery",
-    address: "123 Main St, Apt 4B, Downtown",
-    estimatedDelivery: "25-35 min",
-    notes: "Ring doorbell twice, no onions on burger",
-  },
-  {
-    id: "ORD-002",
-    customer: "Jane Smith",
-    phone: "+1 (555) 987-6543",
-    items: "1x Pizza, 2x Coke",
-    total: 18.5,
-    status: "ready",
-    time: "5 min ago",
-    orderType: "takeaway",
-    address: "Pickup at store",
-    estimatedDelivery: "Ready for pickup",
-    notes: "Customer will arrive in 10 minutes",
-  },
-  {
-    id: "ORD-003",
-    customer: "Mike Johnson",
-    phone: "+1 (555) 456-7890",
-    items: "3x Tacos, 1x Salad",
-    total: 32.75,
-    status: "delivered",
-    time: "15 min ago",
-    orderType: "delivery",
-    address: "456 Oak Ave, House with blue door",
-    estimatedDelivery: "Delivered",
-    notes: "Extra lime, left at door",
-  },
-  {
-    id: "ORD-004",
-    customer: "Sarah Wilson",
-    phone: "+1 (555) 321-0987",
-    items: "1x Pasta, 1x Wine",
-    total: 28.0,
-    status: "new",
-    time: "2 min ago",
-    orderType: "delivery",
-    address: "789 Pine St, Unit 12, Riverside Complex",
-    estimatedDelivery: "30-40 min",
-    notes: "Call when arriving, gate code: 1234",
-  },
-];
 
 const menuItems = [
   {
@@ -285,7 +239,7 @@ const menuItems = [
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "new":
+    case "pending":
       return "bg-blue-100 text-blue-800";
     case "preparing":
       return "bg-yellow-100 text-yellow-800";
@@ -306,6 +260,7 @@ export default function RestaurantDashboard() {
     description: "",
     available: true,
   });
+  const [orders, setOrders] = useState<any[]>([]);
 
   const handleAddItem = () => {
     // Handle adding new menu item
@@ -323,6 +278,20 @@ export default function RestaurantDashboard() {
     // Handle order status update
     console.log(`Updating order ${orderId} to ${newStatus}`);
   };
+
+  useEffect(() => {
+    const db = getFirestore(firebaseApp);
+    const q = query(
+      collection(db, "orders"),
+      orderBy("createdAt", "desc"),
+      limit(10)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setOrders(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -374,19 +343,19 @@ export default function RestaurantDashboard() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem>
-                    <a href="/" className="w-full">
+                    <Link href="/" className="w-full">
                       Dashboard
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <a href="/orders" className="w-full">
+                    <Link href="/orders" className="w-full">
                       All Orders
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <a href="/kitchen" className="w-full">
+                    <Link href="/kitchen" className="w-full">
                       Kitchen View
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -542,18 +511,20 @@ export default function RestaurantDashboard() {
                         </div>
                         <div>
                           <p className="text-sm text-gray-600 truncate">
-                            {order.items}
+                            {order.items.map(
+                              (item: any) => item.name + "x" + item.quantity
+                            )}
                           </p>
                           <div className="flex items-center justify-between mt-2">
                             <span className="font-medium">${order.total}</span>
                             <span className="text-sm text-gray-500">
-                              {order.time}
+                              {/* {order.time} */}
                             </span>
                           </div>
                         </div>
                         {order.notes && (
                           <div className="p-2 bg-yellow-50 rounded text-xs">
-                            <strong>Notes:</strong> {order.notes}
+                            {/* <strong>Notes:</strong> {order.notes} */}
                           </div>
                         )}
                         <DropdownMenu>
@@ -620,16 +591,16 @@ export default function RestaurantDashboard() {
                           <TableCell>
                             <div>
                               <div className="font-medium flex items-center gap-2">
-                                {order.customer}
+                                {order.customerName}
                                 <a
-                                  href={`tel:${order.phone}`}
+                                  href={`tel:${order.customerPhone}`}
                                   className="text-blue-600"
                                 >
                                   <Phone className="h-4 w-4" />
                                 </a>
                               </div>
                               <div className="text-sm text-gray-500">
-                                {order.phone}
+                                {order.customerPhone}
                               </div>
                             </div>
                           </TableCell>
@@ -643,16 +614,22 @@ export default function RestaurantDashboard() {
                               <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                               <div>
                                 <div className="text-sm truncate">
-                                  {order.address}
+                                  {order?.deliveryAddress?.street}
                                 </div>
                                 <div className="text-xs text-orange-600">
-                                  {order.estimatedDelivery}
+                                  {order.status === "pending" &&
+                                  order.orderType === "pickup"
+                                    ? "40 min "
+                                    : "Ready"}
                                 </div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate">
-                            {order.items}
+                            {/* {order.items} */}
+                            {order.items.map(
+                              (item: any) => item.name + "x" + item.quantity
+                            )}
                           </TableCell>
                           <TableCell>${order.total}</TableCell>
                           <TableCell>

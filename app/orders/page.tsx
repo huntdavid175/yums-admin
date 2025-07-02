@@ -52,6 +52,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import Link from "next/link";
 
 // Extended mock data for delivery/takeaway orders
 const allOrders = [
@@ -221,21 +222,21 @@ export default function OrdersPage() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
-            <a
+            <Link
               href="/"
               className="text-gray-700 hover:text-orange-600 font-medium"
             >
               Dashboard
-            </a>
-            <a href="/orders" className="text-orange-600 font-medium">
+            </Link>
+            <Link href="/orders" className="text-orange-600 font-medium">
               All Orders
-            </a>
-            <a
+            </Link>
+            <Link
               href="/kitchen"
               className="text-gray-700 hover:text-orange-600 font-medium"
             >
               Kitchen View
-            </a>
+            </Link>
           </nav>
 
           {/* Mobile & Desktop Right Section */}
