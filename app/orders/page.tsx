@@ -251,9 +251,9 @@ export default function OrdersPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem>
-                    <a href="/" className="w-full">
+                    <Link href="/" className="w-full">
                       Dashboard
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <a href="/orders" className="w-full">
