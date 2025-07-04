@@ -52,7 +52,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { OrderDialog } from "@/components/orders/OrderDialog";
 
 import {
   getFirestore,
@@ -65,7 +64,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import firebaseApp from "@/lib/firebase";
-import MobileOrderCard from "@/components/orders/MobileOrderCard";
+import Link from "next/link";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -101,7 +100,7 @@ const statusOrder = ["pending", "preparing", "ready", "delivered"];
 
 export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  //   const [dialogOpen, setDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelOrder, setCancelOrder] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -159,21 +158,21 @@ export default function OrdersPage() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
-            <a
+            <Link
               href="/"
               className="text-gray-700 hover:text-orange-600 font-medium"
             >
               Dashboard
-            </a>
-            <a href="/orders" className="text-orange-600 font-medium">
+            </Link>
+            <Link href="/orders" className="text-orange-600 font-medium">
               All Orders
-            </a>
-            <a
+            </Link>
+            <Link
               href="/kitchen"
               className="text-gray-700 hover:text-orange-600 font-medium"
             >
               Kitchen View
-            </a>
+            </Link>
           </nav>
 
           {/* Mobile & Desktop Right Section */}
@@ -188,9 +187,9 @@ export default function OrdersPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem>
-                    <a href="/" className="w-full">
+                    <Link href="/" className="w-full">
                       Dashboard
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <a href="/orders" className="w-full">
