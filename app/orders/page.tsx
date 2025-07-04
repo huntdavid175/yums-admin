@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,123 +52,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import Link from "next/link";
+import { OrderDialog } from "@/components/orders/OrderDialog";
 
-// Extended mock data for delivery/takeaway orders
-const allOrders = [
-  {
-    id: "ORD-001",
-    customer: "John Doe",
-    phone: "+1 (555) 123-4567",
-    items: [
-      { name: "Classic Burger", quantity: 2, price: 12.99 },
-      { name: "French Fries", quantity: 1, price: 4.99 },
-    ],
-    total: 30.97,
-    status: "preparing",
-    time: "10 min ago",
-    orderType: "delivery",
-    address: "123 Main St, Apt 4B, Downtown",
-    estimatedDelivery: "25-35 min",
-    date: "2024-01-07",
-    notes: "Ring doorbell twice, no onions on burger",
-    deliveryFee: 3.99,
-  },
-  {
-    id: "ORD-002",
-    customer: "Jane Smith",
-    phone: "+1 (555) 987-6543",
-    items: [
-      { name: "Margherita Pizza", quantity: 1, price: 14.99 },
-      { name: "Coca Cola", quantity: 2, price: 2.99 },
-    ],
-    total: 20.97,
-    status: "ready",
-    time: "5 min ago",
-    orderType: "takeaway",
-    address: "Pickup at store",
-    estimatedDelivery: "Ready for pickup",
-    date: "2024-01-07",
-    notes: "Customer will arrive in 10 minutes",
-    deliveryFee: 0,
-  },
-  {
-    id: "ORD-003",
-    customer: "Mike Johnson",
-    phone: "+1 (555) 456-7890",
-    items: [
-      { name: "Fish Tacos", quantity: 3, price: 8.99 },
-      { name: "Caesar Salad", quantity: 1, price: 8.99 },
-    ],
-    total: 35.96,
-    status: "delivered",
-    time: "15 min ago",
-    orderType: "delivery",
-    address: "456 Oak Ave, House with blue door",
-    estimatedDelivery: "Delivered",
-    date: "2024-01-07",
-    notes: "Extra lime, left at door",
-    deliveryFee: 3.99,
-  },
-  {
-    id: "ORD-004",
-    customer: "Sarah Wilson",
-    phone: "+1 (555) 321-0987",
-    items: [
-      { name: "Chicken Pasta", quantity: 1, price: 16.99 },
-      { name: "House Wine", quantity: 1, price: 8.99 },
-    ],
-    total: 25.98,
-    status: "new",
-    time: "2 min ago",
-    orderType: "delivery",
-    address: "789 Pine St, Unit 12, Riverside Complex",
-    estimatedDelivery: "30-40 min",
-    date: "2024-01-07",
-    notes: "Call when arriving, gate code: 1234",
-    deliveryFee: 3.99,
-  },
-  {
-    id: "ORD-005",
-    customer: "David Brown",
-    phone: "+1 (555) 654-3210",
-    items: [
-      { name: "BBQ Ribs", quantity: 1, price: 22.99 },
-      { name: "Coleslaw", quantity: 1, price: 3.99 },
-    ],
-    total: 26.98,
-    status: "cancelled",
-    time: "1 hour ago",
-    orderType: "takeaway",
-    address: "Pickup at store",
-    estimatedDelivery: "Cancelled",
-    date: "2024-01-07",
-    notes: "Customer cancelled - refund processed",
-    deliveryFee: 0,
-  },
-  {
-    id: "ORD-006",
-    customer: "Lisa Garcia",
-    phone: "+1 (555) 789-0123",
-    items: [
-      { name: "Vegetarian Wrap", quantity: 2, price: 9.99 },
-      { name: "Sweet Potato Fries", quantity: 1, price: 5.99 },
-    ],
-    total: 25.97,
-    status: "completed",
-    time: "2 hours ago",
-    orderType: "delivery",
-    address: "321 Elm St, Apartment 3B, Green building",
-    estimatedDelivery: "Delivered",
-    date: "2024-01-07",
-    notes: "Leave at door, customer tipped via app",
-    deliveryFee: 3.99,
-  },
-];
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+import firebaseApp from "@/lib/firebase";
+import MobileOrderCard from "@/components/orders/MobileOrderCard";
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "new":
+    case "pending":
       return "bg-blue-100 text-blue-800";
     case "preparing":
       return "bg-yellow-100 text-yellow-800";
@@ -184,24 +85,60 @@ const getStatusColor = (status: string) => {
   }
 };
 
+function formatTime(isoString: string) {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  return date
+    .toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .toLowerCase();
+}
+
+const statusOrder = ["pending", "preparing", "ready", "delivered"];
+
 export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelOrder, setCancelOrder] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [orders, setOrders] = useState<any[]>([]);
 
-  const filteredOrders = allOrders.filter((order) => {
-    const matchesStatus =
-      statusFilter === "all" || order.status === statusFilter;
-    const matchesSearch =
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.phone.includes(searchTerm);
-    return matchesStatus && matchesSearch;
-  });
-
-  const updateOrderStatus = (orderId: string, newStatus: string) => {
-    console.log(`Updating order ${orderId} to ${newStatus}`);
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const db = getFirestore(firebaseApp);
+      const orderRef = doc(db, "orders", orderId);
+      await updateDoc(orderRef, { status: newStatus });
+      console.log(`Order ${orderId} updated to ${newStatus}`);
+    } catch (error) {
+      console.error("Failed to update order status:", error);
+    }
   };
+
+  const handleCancelOrder = async () => {
+    if (!cancelOrder) return;
+    await updateOrderStatus(cancelOrder.id, "cancelled");
+    setCancelDialogOpen(false);
+    setCancelOrder(null);
+  };
+
+  useEffect(() => {
+    const db = getFirestore(firebaseApp);
+    const q = query(
+      collection(db, "orders"),
+      orderBy("createdAt", "desc"),
+      limit(10)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setOrders(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -222,21 +159,21 @@ export default function OrdersPage() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
-            <Link
+            <a
               href="/"
               className="text-gray-700 hover:text-orange-600 font-medium"
             >
               Dashboard
-            </Link>
-            <Link href="/orders" className="text-orange-600 font-medium">
+            </a>
+            <a href="/orders" className="text-orange-600 font-medium">
               All Orders
-            </Link>
-            <Link
+            </a>
+            <a
               href="/kitchen"
               className="text-gray-700 hover:text-orange-600 font-medium"
             >
               Kitchen View
-            </Link>
+            </a>
           </nav>
 
           {/* Mobile & Desktop Right Section */}
@@ -251,9 +188,9 @@ export default function OrdersPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem>
-                    <Link href="/" className="w-full">
+                    <a href="/" className="w-full">
                       Dashboard
-                    </Link>
+                    </a>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <a href="/orders" className="w-full">
@@ -348,7 +285,7 @@ export default function OrdersPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg md:text-xl">
-              Orders ({filteredOrders.length})
+              Orders ({orders.length})
             </CardTitle>
             <CardDescription>
               {statusFilter === "all"
@@ -360,11 +297,11 @@ export default function OrdersPage() {
             {/* Mobile/Tablet Order Cards */}
             <div className="lg:hidden">
               <div className="grid gap-4 md:grid-cols-2">
-                {filteredOrders.map((order) => (
+                {orders.map((order) => (
                   <Card key={order.id} className="p-4">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{order.id}</span>
+                        {/* <span className="font-medium">{order.id}</span> */}
                         <div className="flex items-center gap-2">
                           <Badge
                             variant="outline"
@@ -379,20 +316,22 @@ export default function OrdersPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">{order.customer}</p>
+                          <p className="font-medium">{order.customerName}</p>
                           <a
-                            href={`tel:${order.phone}`}
+                            href={`tel:${order.customerPhone}`}
                             className="text-blue-600"
                           >
                             <Phone className="h-4 w-4" />
                           </a>
                         </div>
-                        <p className="text-sm text-gray-500">{order.phone}</p>
+                        <p className="text-sm text-gray-500">
+                          {order.customerPhone}
+                        </p>
                         <div className="flex items-start gap-1 mt-1">
                           <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                           <div>
                             <p className="text-sm text-gray-600">
-                              {order.address}
+                              {order?.deliveryAddress?.street}
                             </p>
                             <p className="text-xs text-orange-600">
                               {order.estimatedDelivery}
@@ -403,7 +342,9 @@ export default function OrdersPage() {
                       <div>
                         <p className="text-sm text-gray-600 line-clamp-2">
                           {order.items
-                            .map((item) => `${item.quantity}x ${item.name}`)
+                            .map(
+                              (item: any) => `${item.quantity}x ${item.name}`
+                            )
                             .join(", ")}
                         </p>
                         <div className="flex items-center justify-between mt-2">
@@ -411,7 +352,7 @@ export default function OrdersPage() {
                             ${order.total.toFixed(2)}
                           </span>
                           <span className="text-sm text-gray-500">
-                            {order.time}
+                            {formatTime(order.paidAt)}
                           </span>
                         </div>
                       </div>
@@ -509,7 +450,7 @@ export default function OrdersPage() {
                                   <div className="p-3 bg-gray-50 rounded space-y-2">
                                     <p>
                                       <strong>Address:</strong>{" "}
-                                      {selectedOrder.address}
+                                      {selectedOrder?.deliveryAddress?.street}
                                     </p>
                                     <p>
                                       <strong>Estimated Time:</strong>{" "}
@@ -618,35 +559,50 @@ export default function OrdersPage() {
 
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={
+                                order.status === "delivered" ||
+                                order.status === "cancelled"
+                              }
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() =>
-                                updateOrderStatus(order.id, "preparing")
-                              }
-                            >
-                              Mark as Preparing
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                updateOrderStatus(order.id, "ready")
-                              }
-                            >
-                              Mark as Ready
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                updateOrderStatus(order.id, "delivered")
-                              }
-                            >
-                              Mark as Delivered
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
-                              Cancel Order
-                            </DropdownMenuItem>
+                            {(() => {
+                              const currentIndex = statusOrder.indexOf(
+                                order.status
+                              );
+                              return statusOrder
+                                .slice(currentIndex + 1)
+                                .map((nextStatus) => (
+                                  <DropdownMenuItem
+                                    key={nextStatus}
+                                    onClick={() =>
+                                      updateOrderStatus(order.id, nextStatus)
+                                    }
+                                  >
+                                    {`Mark as ${
+                                      nextStatus.charAt(0).toUpperCase() +
+                                      nextStatus.slice(1)
+                                    }`}
+                                  </DropdownMenuItem>
+                                ));
+                            })()}
+                            {order.status !== "delivered" &&
+                              order.status !== "cancelled" && (
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => {
+                                    setCancelOrder(order);
+                                    setCancelDialogOpen(true);
+                                  }}
+                                >
+                                  Cancel Order
+                                </DropdownMenuItem>
+                              )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -673,22 +629,22 @@ export default function OrdersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrders.map((order) => (
+                  {orders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.id}</TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium flex items-center gap-2">
-                            {order.customer}
+                            {order.customerName}
                             <a
-                              href={`tel:${order.phone}`}
+                              href={`tel:${order.customerPhone}`}
                               className="text-blue-600"
                             >
                               <Phone className="h-4 w-4" />
                             </a>
                           </div>
                           <div className="text-sm text-gray-500">
-                            {order.phone}
+                            {order.customerPhone}
                           </div>
                         </div>
                       </TableCell>
@@ -702,7 +658,7 @@ export default function OrdersPage() {
                           <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                           <div>
                             <div className="text-sm truncate">
-                              {order.address}
+                              {order?.deliveryAddress?.street}
                             </div>
                             <div className="text-xs text-orange-600">
                               {order.estimatedDelivery}
@@ -713,7 +669,9 @@ export default function OrdersPage() {
                       <TableCell className="max-w-[200px]">
                         <div className="truncate">
                           {order.items
-                            .map((item) => `${item.quantity}x ${item.name}`)
+                            .map(
+                              (item: any) => `${item.quantity}x ${item.name}`
+                            )
                             .join(", ")}
                         </div>
                       </TableCell>
@@ -725,7 +683,7 @@ export default function OrdersPage() {
                           {order.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{order.time}</TableCell>
+                      <TableCell>{formatTime(order.paidAt)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Dialog>
@@ -815,7 +773,7 @@ export default function OrdersPage() {
                                     <div className="p-3 bg-gray-50 rounded space-y-2">
                                       <p>
                                         <strong>Address:</strong>{" "}
-                                        {selectedOrder.address}
+                                        {selectedOrder?.deliveryAddress?.street}
                                       </p>
                                       <p>
                                         <strong>Estimated Time:</strong>{" "}
@@ -923,35 +881,49 @@ export default function OrdersPage() {
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={
+                                  order.status === "delivered" ||
+                                  order.status === "cancelled"
+                                }
+                              >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  updateOrderStatus(order.id, "preparing")
-                                }
-                              >
-                                Mark as Preparing
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  updateOrderStatus(order.id, "ready")
-                                }
-                              >
-                                Mark as Ready
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  updateOrderStatus(order.id, "delivered")
-                                }
-                              >
-                                Mark as Delivered
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">
-                                Cancel Order
-                              </DropdownMenuItem>
+                              {(() => {
+                                const currentIndex = statusOrder.indexOf(
+                                  order.status
+                                );
+                                return statusOrder
+                                  .slice(currentIndex + 1)
+                                  .map((nextStatus) => (
+                                    <DropdownMenuItem
+                                      key={nextStatus}
+                                      onClick={() =>
+                                        updateOrderStatus(order.id, nextStatus)
+                                      }
+                                    >
+                                      {`Mark as ${
+                                        nextStatus.charAt(0).toUpperCase() +
+                                        nextStatus.slice(1)
+                                      }`}
+                                    </DropdownMenuItem>
+                                  ));
+                              })()}
+                              {order.status !== "delivered" && (
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => {
+                                    setCancelOrder(order);
+                                    setCancelDialogOpen(true);
+                                  }}
+                                >
+                                  Cancel Order
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -964,6 +936,28 @@ export default function OrdersPage() {
           </CardContent>
         </Card>
       </main>
+
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Order</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this order?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setCancelDialogOpen(false)}
+            >
+              No, keep order
+            </Button>
+            <Button variant="destructive" onClick={handleCancelOrder}>
+              Yes, cancel order
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -475,7 +475,9 @@ export default function RestaurantDashboard() {
                     <Card key={order.id} className="p-4">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">{order.id}</span>
+                          <span className="font-medium">
+                            ORD-{order.id.slice(2, 6)}
+                          </span>
                           <div className="flex items-center gap-2">
                             <Badge
                               variant="outline"
@@ -490,19 +492,21 @@ export default function RestaurantDashboard() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium">{order.customer}</p>
+                            <p className="font-medium">{order.customerName}</p>
                             <a
-                              href={`tel:${order.phone}`}
+                              href={`tel:${order.customerPhone}`}
                               className="text-blue-600"
                             >
                               <Phone className="h-4 w-4" />
                             </a>
                           </div>
-                          <p className="text-sm text-gray-500">{order.phone}</p>
+                          <p className="text-sm text-gray-500">
+                            {order.customerPhone}
+                          </p>
                           <div className="flex items-start gap-1 mt-1">
                             <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                             <p className="text-sm text-gray-600">
-                              {order.address}
+                              {order?.deliveryAddress?.street}
                             </p>
                           </div>
                           <p className="text-xs text-orange-600 mt-1">
@@ -516,7 +520,9 @@ export default function RestaurantDashboard() {
                             )}
                           </p>
                           <div className="flex items-center justify-between mt-2">
-                            <span className="font-medium">${order.total}</span>
+                            <span className="font-medium">
+                              GH₵{order.total}
+                            </span>
                             <span className="text-sm text-gray-500">
                               {/* {order.time} */}
                             </span>
@@ -586,7 +592,7 @@ export default function RestaurantDashboard() {
                       {orders.map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="font-medium">
-                            {order.id}
+                            ORD-{order.id.slice(2, 6)}
                           </TableCell>
                           <TableCell>
                             <div>
@@ -631,7 +637,7 @@ export default function RestaurantDashboard() {
                               (item: any) => item.name + "x" + item.quantity
                             )}
                           </TableCell>
-                          <TableCell>${order.total}</TableCell>
+                          <TableCell>GH₵{order.total}</TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(order.status)}>
                               {order.status}
