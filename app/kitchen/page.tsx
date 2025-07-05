@@ -351,7 +351,7 @@ export default function KitchenView() {
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base md:text-lg">
-                            {order.orderNumber || order.id}
+                            ORD-{order.orderNumber || order.id}
                           </CardTitle>
                           <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
                             <Badge
@@ -481,7 +481,7 @@ export default function KitchenView() {
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base md:text-lg">
-                            {order.orderNumber || order.id}
+                            ORD-{order.orderNumber || order.id}
                           </CardTitle>
                           <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
                             <Badge
@@ -615,7 +615,7 @@ export default function KitchenView() {
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base md:text-lg">
-                            {order.orderNumber || order.id}
+                            ORD-{order.orderNumber || order.id}
                           </CardTitle>
                           <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
                             <Badge
@@ -909,7 +909,7 @@ export default function KitchenView() {
                                 <div className="flex items-center gap-2 mt-1">
                                   {item.size && (
                                     <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
-                                      {item.size}
+                                      {capitalizeStatus(item.size)}
                                     </span>
                                   )}
                                   <span className="text-sm text-gray-500">
