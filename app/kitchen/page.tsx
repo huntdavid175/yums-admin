@@ -232,19 +232,19 @@ export default function KitchenView() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem>
-                    <a href="/" className="w-full">
+                    <Link href="/" className="w-full">
                       Dashboard
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <a href="/orders" className="w-full">
+                    <Link href="/orders" className="w-full">
                       All Orders
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <a href="/kitchen" className="w-full">
+                    <Link href="/kitchen" className="w-full">
                       Kitchen View
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
