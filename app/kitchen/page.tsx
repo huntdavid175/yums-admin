@@ -48,7 +48,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import firebaseApp from "@/lib/firebase";
-import { capitalizeStatus, formatRelativeTime } from "../orders/page";
+import { formatRelativeTime, capitalizeStatus } from "@/helpers/helpers";
 import Link from "next/link";
 
 const getStatusColor = (status: string) => {
