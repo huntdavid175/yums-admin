@@ -49,6 +49,7 @@ import {
 } from "firebase/firestore";
 import firebaseApp from "@/lib/firebase";
 import { capitalizeStatus, formatRelativeTime } from "../orders/page";
+import Link from "next/link";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -192,21 +193,21 @@ export default function KitchenView() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
-            <a
+            <Link
               href="/"
               className="text-gray-700 hover:text-orange-600 font-medium"
             >
               Dashboard
-            </a>
-            <a
+            </Link>
+            <Link
               href="/orders"
               className="text-gray-700 hover:text-orange-600 font-medium"
             >
               All Orders
-            </a>
-            <a href="/kitchen" className="text-orange-600 font-medium">
+            </Link>
+            <Link href="/kitchen" className="text-orange-600 font-medium">
               Kitchen View
-            </a>
+            </Link>
           </nav>
 
           {/* Mobile & Desktop Right Section */}
