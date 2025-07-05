@@ -62,9 +62,14 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import firebaseApp from "@/lib/firebase";
 import Link from "next/link";
+import {
+  MobileOrderSkeletonGrid,
+  DesktopTableSkeleton,
+} from "@/components/orders/OrderSkeletons";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -84,19 +89,52 @@ const getStatusColor = (status: string) => {
   }
 };
 
-function formatTime(isoString: string) {
+export function formatRelativeTime(isoString: string, currentTime: Date) {
   if (!isoString) return "";
+
   const date = new Date(isoString);
-  return date
-    .toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-    .toLowerCase();
+  const diffInSeconds = Math.floor(
+    (currentTime.getTime() - date.getTime()) / 1000
+  );
+
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds} second${diffInSeconds !== 1 ? "s" : ""} ago`;
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} minute${diffInMinutes !== 1 ? "s" : ""} ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours !== 1 ? "s" : ""} ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays} day${diffInDays !== 1 ? "s" : ""} ago`;
+  }
+
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks} week${diffInWeeks !== 1 ? "s" : ""} ago`;
+  }
+
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths} month${diffInMonths !== 1 ? "s" : ""} ago`;
+  }
+
+  const diffInYears = Math.floor(diffInDays / 365);
+  return `${diffInYears} year${diffInYears !== 1 ? "s" : ""} ago`;
 }
 
 const statusOrder = ["pending", "preparing", "ready", "delivered"];
+
+export function capitalizeStatus(status: string) {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -106,6 +144,17 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [orders, setOrders] = useState<any[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Update current time every second for real-time relative time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -127,17 +176,61 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const db = getFirestore(firebaseApp);
-    const q = query(
-      collection(db, "orders"),
-      orderBy("createdAt", "desc"),
-      limit(10)
-    );
+
+    // Reset loading state when filter changes
+    setIsLoading(true);
+
+    // Build query based on status filter
+    let q;
+    if (statusFilter === "all") {
+      q = query(
+        collection(db, "orders"),
+        orderBy("createdAt", "desc"),
+        limit(10)
+      );
+    } else {
+      q = query(
+        collection(db, "orders"),
+        where("status", "==", statusFilter),
+        orderBy("createdAt", "desc"),
+        limit(10)
+      );
+    }
+
+    // Note: If you want to restore ordering, create this index in Firebase Console:
+    // Collection: orders
+    // Fields: status (Ascending), createdAt (Descending)
+    // Query scope: Collection
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setOrders(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const ordersData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("Fetched orders:", ordersData);
+      console.log("Current status filter:", statusFilter);
+      console.log(
+        "Orders with statuses:",
+        ordersData.map((order: any) => ({ id: order.id, status: order.status }))
+      );
+      setOrders(ordersData);
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [statusFilter]);
+
+  // Update selectedOrder when orders change
+  useEffect(() => {
+    if (selectedOrder) {
+      const updatedOrder = orders.find(
+        (order) => order.id === selectedOrder.id
+      );
+      if (updatedOrder) {
+        setSelectedOrder(updatedOrder);
+      }
+    }
+  }, [orders, selectedOrder]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -251,11 +344,10 @@ export default function OrdersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="preparing">Preparing</SelectItem>
                     <SelectItem value="ready">Ready</SelectItem>
                     <SelectItem value="delivered">Delivered</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
@@ -295,346 +387,38 @@ export default function OrdersPage() {
           <CardContent>
             {/* Mobile/Tablet Order Cards */}
             <div className="lg:hidden">
-              <div className="grid gap-4 md:grid-cols-2">
-                {orders.map((order) => (
-                  <Card key={order.id} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        {/* <span className="font-medium">{order.id}</span> */}
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className="text-xs capitalize"
-                          >
-                            {order.orderType}
-                          </Badge>
-                          <Badge className={getStatusColor(order.status)}>
-                            {order.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">{order.customerName}</p>
-                          <a
-                            href={`tel:${order.customerPhone}`}
-                            className="text-blue-600"
-                          >
-                            <Phone className="h-4 w-4" />
-                          </a>
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          {order.customerPhone}
-                        </p>
-                        <div className="flex items-start gap-1 mt-1">
-                          <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm text-gray-600">
-                              {order?.deliveryAddress?.street}
-                            </p>
-                            <p className="text-xs text-orange-600">
-                              {order.estimatedDelivery}
-                            </p>
+              {isLoading ? (
+                <MobileOrderSkeletonGrid />
+              ) : orders.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">
+                    {statusFilter === "all"
+                      ? "No orders found"
+                      : `No orders with status "${statusFilter}" found`}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {orders.map((order) => (
+                    <Card key={order.id} className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          {/* <span className="font-medium">{order.id}</span> */}
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className="text-xs capitalize"
+                            >
+                              {order.orderType}
+                            </Badge>
+                            <Badge className={getStatusColor(order.status)}>
+                              {capitalizeStatus(order.status)}
+                            </Badge>
                           </div>
                         </div>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {order.items
-                            .map(
-                              (item: any) => `${item.quantity}x ${item.name}`
-                            )
-                            .join(", ")}
-                        </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="font-medium">
-                            ${order.total.toFixed(2)}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {formatTime(order.paidAt)}
-                          </span>
-                        </div>
-                      </div>
-                      {order.notes && (
-                        <div className="p-2 bg-yellow-50 rounded text-xs">
-                          <strong>Notes:</strong> {order.notes}
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 bg-transparent"
-                              onClick={() => setSelectedOrder(order)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>
-                                Order Details - {selectedOrder?.id}
-                              </DialogTitle>
-                              <DialogDescription>
-                                Complete order information and delivery details
-                              </DialogDescription>
-                            </DialogHeader>
-                            {selectedOrder && (
-                              <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div>
-                                    <h4 className="font-semibold mb-2">
-                                      Customer Information
-                                    </h4>
-                                    <div className="space-y-1">
-                                      <div className="flex items-center gap-2">
-                                        <strong>Name:</strong>{" "}
-                                        {selectedOrder.customer}
-                                        <a
-                                          href={`tel:${selectedOrder.phone}`}
-                                          className="text-blue-600"
-                                        >
-                                          <Phone className="h-4 w-4" />
-                                        </a>
-                                      </div>
-                                      <p>
-                                        <strong>Phone:</strong>{" "}
-                                        {selectedOrder.phone}
-                                      </p>
-                                      <p>
-                                        <strong>Type:</strong>{" "}
-                                        {selectedOrder.orderType}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-semibold mb-2">
-                                      Order Information
-                                    </h4>
-                                    <div className="space-y-1">
-                                      <p>
-                                        <strong>Order ID:</strong>{" "}
-                                        {selectedOrder.id}
-                                      </p>
-                                      <p>
-                                        <strong>Status:</strong>{" "}
-                                        <Badge
-                                          className={getStatusColor(
-                                            selectedOrder.status
-                                          )}
-                                        >
-                                          {selectedOrder.status}
-                                        </Badge>
-                                      </p>
-                                      <p>
-                                        <strong>Time:</strong>{" "}
-                                        {selectedOrder.time}
-                                      </p>
-                                      <p>
-                                        <strong>Total:</strong> $
-                                        {selectedOrder.total.toFixed(2)}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                                    <MapPin className="h-4 w-4" />
-                                    Delivery Information
-                                  </h4>
-                                  <div className="p-3 bg-gray-50 rounded space-y-2">
-                                    <p>
-                                      <strong>Address:</strong>{" "}
-                                      {selectedOrder?.deliveryAddress?.street}
-                                    </p>
-                                    <p>
-                                      <strong>Estimated Time:</strong>{" "}
-                                      {selectedOrder.estimatedDelivery}
-                                    </p>
-                                    {selectedOrder.deliveryFee > 0 && (
-                                      <p>
-                                        <strong>Delivery Fee:</strong> $
-                                        {selectedOrder.deliveryFee.toFixed(2)}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <h4 className="font-semibold mb-2">
-                                    Order Items
-                                  </h4>
-                                  <div className="space-y-2">
-                                    {selectedOrder.items.map(
-                                      (item: any, index: number) => (
-                                        <div
-                                          key={index}
-                                          className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                                        >
-                                          <span>
-                                            {item.quantity}x {item.name}
-                                          </span>
-                                          <span className="font-medium">
-                                            $
-                                            {(
-                                              item.quantity * item.price
-                                            ).toFixed(2)}
-                                          </span>
-                                        </div>
-                                      )
-                                    )}
-                                    {selectedOrder.deliveryFee > 0 && (
-                                      <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                                        <span>Delivery Fee</span>
-                                        <span className="font-medium">
-                                          $
-                                          {selectedOrder.deliveryFee.toFixed(2)}
-                                        </span>
-                                      </div>
-                                    )}
-                                    <div className="flex justify-between items-center p-2 bg-green-50 rounded font-bold">
-                                      <span>Total</span>
-                                      <span>
-                                        ${selectedOrder.total.toFixed(2)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {selectedOrder.notes && (
-                                  <div>
-                                    <h4 className="font-semibold mb-2">
-                                      Special Notes
-                                    </h4>
-                                    <p className="text-sm bg-yellow-50 p-3 rounded">
-                                      {selectedOrder.notes}
-                                    </p>
-                                  </div>
-                                )}
-
-                                <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                                  <Button
-                                    onClick={() =>
-                                      updateOrderStatus(
-                                        selectedOrder.id,
-                                        "preparing"
-                                      )
-                                    }
-                                    className="w-full sm:w-auto"
-                                  >
-                                    Mark as Preparing
-                                  </Button>
-                                  <Button
-                                    onClick={() =>
-                                      updateOrderStatus(
-                                        selectedOrder.id,
-                                        "ready"
-                                      )
-                                    }
-                                    className="w-full sm:w-auto"
-                                  >
-                                    Mark as Ready
-                                  </Button>
-                                  <Button
-                                    onClick={() =>
-                                      updateOrderStatus(
-                                        selectedOrder.id,
-                                        "delivered"
-                                      )
-                                    }
-                                    className="w-full sm:w-auto"
-                                  >
-                                    Mark as Delivered
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={
-                                order.status === "delivered" ||
-                                order.status === "cancelled"
-                              }
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {(() => {
-                              const currentIndex = statusOrder.indexOf(
-                                order.status
-                              );
-                              return statusOrder
-                                .slice(currentIndex + 1)
-                                .map((nextStatus) => (
-                                  <DropdownMenuItem
-                                    key={nextStatus}
-                                    onClick={() =>
-                                      updateOrderStatus(order.id, nextStatus)
-                                    }
-                                  >
-                                    {`Mark as ${
-                                      nextStatus.charAt(0).toUpperCase() +
-                                      nextStatus.slice(1)
-                                    }`}
-                                  </DropdownMenuItem>
-                                ));
-                            })()}
-                            {order.status !== "delivered" &&
-                              order.status !== "cancelled" && (
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onClick={() => {
-                                    setCancelOrder(order);
-                                    setCancelDialogOpen(true);
-                                  }}
-                                >
-                                  Cancel Order
-                                </DropdownMenuItem>
-                              )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden lg:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.id}</TableCell>
-                      <TableCell>
                         <div>
-                          <div className="font-medium flex items-center gap-2">
-                            {order.customerName}
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium">{order.customerName}</p>
                             <a
                               href={`tel:${order.customerPhone}`}
                               className="text-blue-600"
@@ -642,60 +426,57 @@ export default function OrdersPage() {
                               <Phone className="h-4 w-4" />
                             </a>
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500">
                             {order.customerPhone}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {order.orderType}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px]">
-                        <div className="flex items-start gap-1">
-                          <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <div className="text-sm truncate">
-                              {order?.deliveryAddress?.street}
-                            </div>
-                            <div className="text-xs text-orange-600">
-                              {order.estimatedDelivery}
+                          </p>
+                          <div className="flex items-start gap-1 mt-1">
+                            <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm text-gray-600">
+                                {order?.deliveryAddress?.street}
+                              </p>
+                              <p className="text-xs text-orange-600">
+                                {order.estimatedDelivery}
+                              </p>
                             </div>
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="max-w-[200px]">
-                        <div className="truncate">
-                          {order.items
-                            .map(
-                              (item: any) => `${item.quantity}x ${item.name}`
-                            )
-                            .join(", ")}
+                        <div>
+                          <p className="text-sm text-gray-600 line-clamp-2">
+                            {order.items
+                              .map(
+                                (item: any) => `${item.quantity}x ${item.name}`
+                              )
+                              .join(", ")}
+                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="font-medium">
+                              GH₵{order.total.toFixed(2)}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {formatRelativeTime(order.paidAt, currentTime)}
+                            </span>
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        ${order.total.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(order.status)}>
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatTime(order.paidAt)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+                        {order.notes && (
+                          <div className="p-2 bg-yellow-50 rounded text-xs">
+                            <strong>Notes:</strong> {order.notes}
+                          </div>
+                        )}
+                        <div className="flex gap-2">
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
                                 variant="outline"
-                                size="icon"
+                                size="sm"
+                                className="flex-1 bg-transparent"
                                 onClick={() => setSelectedOrder(order)}
                               >
-                                <Eye className="h-4 w-4" />
+                                <Eye className="h-4 w-4 mr-2" />
+                                View
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
+                            <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle>
                                   Order Details - {selectedOrder?.id}
@@ -707,7 +488,7 @@ export default function OrdersPage() {
                               </DialogHeader>
                               {selectedOrder && (
                                 <div className="space-y-6">
-                                  <div className="grid grid-cols-2 gap-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                       <h4 className="font-semibold mb-2">
                                         Customer Information
@@ -715,17 +496,17 @@ export default function OrdersPage() {
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                           <strong>Name:</strong>{" "}
-                                          {selectedOrder.customer}
-                                          <a
-                                            href={`tel:${selectedOrder.phone}`}
+                                          {selectedOrder.customerName}
+                                          <Link
+                                            href={`tel:${selectedOrder.customerPhone}`}
                                             className="text-blue-600"
                                           >
                                             <Phone className="h-4 w-4" />
-                                          </a>
+                                          </Link>
                                         </div>
                                         <p>
                                           <strong>Phone:</strong>{" "}
-                                          {selectedOrder.phone}
+                                          {selectedOrder.customerPhone}
                                         </p>
                                         <p>
                                           <strong>Type:</strong>{" "}
@@ -749,15 +530,20 @@ export default function OrdersPage() {
                                               selectedOrder.status
                                             )}
                                           >
-                                            {selectedOrder.status}
+                                            {capitalizeStatus(
+                                              selectedOrder.status
+                                            )}
                                           </Badge>
                                         </p>
                                         <p>
                                           <strong>Time:</strong>{" "}
-                                          {selectedOrder.time}
+                                          {formatRelativeTime(
+                                            selectedOrder.paidAt,
+                                            currentTime
+                                          )}
                                         </p>
                                         <p>
-                                          <strong>Total:</strong> $
+                                          <strong>Total:</strong> GH₵
                                           {selectedOrder.total.toFixed(2)}
                                         </p>
                                       </div>
@@ -814,7 +600,7 @@ export default function OrdersPage() {
                                         <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
                                           <span>Delivery Fee</span>
                                           <span className="font-medium">
-                                            $
+                                            GH₵
                                             {selectedOrder.deliveryFee.toFixed(
                                               2
                                             )}
@@ -824,7 +610,7 @@ export default function OrdersPage() {
                                       <div className="flex justify-between items-center p-2 bg-green-50 rounded font-bold">
                                         <span>Total</span>
                                         <span>
-                                          ${selectedOrder.total.toFixed(2)}
+                                          GH₵{selectedOrder.total.toFixed(2)}
                                         </span>
                                       </div>
                                     </div>
@@ -841,37 +627,30 @@ export default function OrdersPage() {
                                     </div>
                                   )}
 
-                                  <div className="flex gap-2 pt-4">
-                                    <Button
-                                      onClick={() =>
-                                        updateOrderStatus(
-                                          selectedOrder.id,
-                                          "preparing"
-                                        )
-                                      }
-                                    >
-                                      Mark as Preparing
-                                    </Button>
-                                    <Button
-                                      onClick={() =>
-                                        updateOrderStatus(
-                                          selectedOrder.id,
-                                          "ready"
-                                        )
-                                      }
-                                    >
-                                      Mark as Ready
-                                    </Button>
-                                    <Button
-                                      onClick={() =>
-                                        updateOrderStatus(
-                                          selectedOrder.id,
-                                          "delivered"
-                                        )
-                                      }
-                                    >
-                                      Mark as Delivered
-                                    </Button>
+                                  <div className="flex flex-col sm:flex-row gap-2 pt-4">
+                                    {(() => {
+                                      const currentIndex = statusOrder.indexOf(
+                                        selectedOrder.status
+                                      );
+                                      return statusOrder
+                                        .slice(currentIndex + 1)
+                                        .map((nextStatus) => (
+                                          <Button
+                                            key={nextStatus}
+                                            onClick={() =>
+                                              updateOrderStatus(
+                                                selectedOrder.id,
+                                                nextStatus
+                                              )
+                                            }
+                                            className="w-full sm:w-auto"
+                                          >
+                                            {`Mark as ${capitalizeStatus(
+                                              nextStatus
+                                            )}`}
+                                          </Button>
+                                        ));
+                                    })()}
                                   </div>
                                 </div>
                               )}
@@ -881,8 +660,8 @@ export default function OrdersPage() {
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
-                                variant="ghost"
-                                size="icon"
+                                variant="outline"
+                                size="sm"
                                 disabled={
                                   order.status === "delivered" ||
                                   order.status === "cancelled"
@@ -905,32 +684,376 @@ export default function OrdersPage() {
                                         updateOrderStatus(order.id, nextStatus)
                                       }
                                     >
-                                      {`Mark as ${
-                                        nextStatus.charAt(0).toUpperCase() +
-                                        nextStatus.slice(1)
-                                      }`}
+                                      {`Mark as ${capitalizeStatus(
+                                        nextStatus
+                                      )}`}
                                     </DropdownMenuItem>
                                   ));
                               })()}
-                              {order.status !== "delivered" && (
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onClick={() => {
-                                    setCancelOrder(order);
-                                    setCancelDialogOpen(true);
-                                  }}
-                                >
-                                  Cancel Order
-                                </DropdownMenuItem>
-                              )}
+                              {order.status !== "delivered" &&
+                                order.status !== "cancelled" && (
+                                  <DropdownMenuItem
+                                    className="text-red-600"
+                                    onClick={() => {
+                                      setCancelOrder(order);
+                                      setCancelDialogOpen(true);
+                                    }}
+                                  >
+                                    Cancel Order
+                                  </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden lg:block overflow-x-auto">
+              {isLoading ? (
+                <DesktopTableSkeleton />
+              ) : orders.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">
+                    {statusFilter === "all"
+                      ? "No orders found"
+                      : `No orders with status "${statusFilter}" found`}
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Destination</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">
+                          {order.id}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium flex items-center gap-2">
+                              {order.customerName}
+                              <a
+                                href={`tel:${order.customerPhone}`}
+                                className="text-blue-600"
+                              >
+                                <Phone className="h-4 w-4" />
+                              </a>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {order.customerPhone}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {order.orderType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[200px]">
+                          <div className="flex items-start gap-1">
+                            <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <div className="text-sm truncate">
+                                {order?.deliveryAddress?.street}
+                              </div>
+                              <div className="text-xs text-orange-600">
+                                {order.estimatedDelivery}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-[200px]">
+                          <div className="truncate">
+                            {order.items
+                              .map(
+                                (item: any) => `${item.quantity}x ${item.name}`
+                              )
+                              .join(", ")}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          GH₵{order.total.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(order.status)}>
+                            {capitalizeStatus(order.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {formatRelativeTime(order.paidAt, currentTime)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => setSelectedOrder(order)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle>
+                                    Order Details - {selectedOrder?.id}
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    Complete order information and delivery
+                                    details
+                                  </DialogDescription>
+                                </DialogHeader>
+                                {selectedOrder && (
+                                  <div className="space-y-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <h4 className="font-semibold mb-2">
+                                          Customer Information
+                                        </h4>
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <strong>Name:</strong>{" "}
+                                            {selectedOrder.customerName}
+                                            <Link
+                                              href={`tel:${selectedOrder.customerPhone}`}
+                                              className="text-blue-600"
+                                            >
+                                              <Phone className="h-4 w-4" />
+                                            </Link>
+                                          </div>
+                                          <p>
+                                            <strong>Phone:</strong>{" "}
+                                            {selectedOrder.customerPhone}
+                                          </p>
+                                          <p>
+                                            <strong>Type:</strong>{" "}
+                                            {selectedOrder.orderType}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-semibold mb-2">
+                                          Order Information
+                                        </h4>
+                                        <div className="space-y-1">
+                                          <p>
+                                            <strong>Order ID:</strong>{" "}
+                                            {selectedOrder.id}
+                                          </p>
+                                          <p>
+                                            <strong>Status:</strong>{" "}
+                                            <Badge
+                                              className={getStatusColor(
+                                                selectedOrder.status
+                                              )}
+                                            >
+                                              {capitalizeStatus(
+                                                selectedOrder.status
+                                              )}
+                                            </Badge>
+                                          </p>
+                                          <p>
+                                            <strong>Time:</strong>{" "}
+                                            {formatRelativeTime(
+                                              selectedOrder.paidAt,
+                                              currentTime
+                                            )}
+                                          </p>
+                                          <p>
+                                            <strong>Total:</strong> GH₵
+                                            {selectedOrder.total.toFixed(2)}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <h4 className="font-semibold mb-2 flex items-center gap-2">
+                                        <MapPin className="h-4 w-4" />
+                                        Delivery Information
+                                      </h4>
+                                      <div className="p-3 bg-gray-50 rounded space-y-2">
+                                        <p>
+                                          <strong>Address:</strong>{" "}
+                                          {
+                                            selectedOrder?.deliveryAddress
+                                              ?.street
+                                          }
+                                        </p>
+                                        <p>
+                                          <strong>Estimated Time:</strong>{" "}
+                                          {selectedOrder.estimatedDelivery}
+                                        </p>
+                                        {selectedOrder.deliveryFee > 0 && (
+                                          <p>
+                                            <strong>Delivery Fee:</strong> $
+                                            {selectedOrder.deliveryFee.toFixed(
+                                              2
+                                            )}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <h4 className="font-semibold mb-2">
+                                        Order Items
+                                      </h4>
+                                      <div className="space-y-2">
+                                        {selectedOrder.items.map(
+                                          (item: any, index: number) => (
+                                            <div
+                                              key={index}
+                                              className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                                            >
+                                              <span>
+                                                {item.quantity}x {item.name}
+                                              </span>
+                                              <span className="font-medium">
+                                                $
+                                                {(
+                                                  item.quantity * item.price
+                                                ).toFixed(2)}
+                                              </span>
+                                            </div>
+                                          )
+                                        )}
+                                        {selectedOrder.deliveryFee > 0 && (
+                                          <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
+                                            <span>Delivery Fee</span>
+                                            <span className="font-medium">
+                                              GH₵
+                                              {selectedOrder.deliveryFee.toFixed(
+                                                2
+                                              )}
+                                            </span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between items-center p-2 bg-green-50 rounded font-bold">
+                                          <span>Total</span>
+                                          <span>
+                                            GH₵{selectedOrder.total.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {selectedOrder.notes && (
+                                      <div>
+                                        <h4 className="font-semibold mb-2">
+                                          Special Notes
+                                        </h4>
+                                        <p className="text-sm bg-yellow-50 p-3 rounded">
+                                          {selectedOrder.notes}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    <div className="flex flex-col sm:flex-row gap-2 pt-4">
+                                      {(() => {
+                                        const currentIndex =
+                                          statusOrder.indexOf(
+                                            selectedOrder.status
+                                          );
+                                        return statusOrder
+                                          .slice(currentIndex + 1)
+                                          .map((nextStatus) => (
+                                            <Button
+                                              key={nextStatus}
+                                              onClick={() =>
+                                                updateOrderStatus(
+                                                  selectedOrder.id,
+                                                  nextStatus
+                                                )
+                                              }
+                                              className="w-full sm:w-auto"
+                                            >
+                                              {`Mark as ${capitalizeStatus(
+                                                nextStatus
+                                              )}`}
+                                            </Button>
+                                          ));
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
+                              </DialogContent>
+                            </Dialog>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  disabled={
+                                    order.status === "delivered" ||
+                                    order.status === "cancelled"
+                                  }
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {(() => {
+                                  const currentIndex = statusOrder.indexOf(
+                                    order.status
+                                  );
+                                  return statusOrder
+                                    .slice(currentIndex + 1)
+                                    .map((nextStatus) => (
+                                      <DropdownMenuItem
+                                        key={nextStatus}
+                                        onClick={() =>
+                                          updateOrderStatus(
+                                            order.id,
+                                            nextStatus
+                                          )
+                                        }
+                                      >
+                                        {`Mark as ${capitalizeStatus(
+                                          nextStatus
+                                        )}`}
+                                      </DropdownMenuItem>
+                                    ));
+                                })()}
+                                {order.status !== "delivered" && (
+                                  <DropdownMenuItem
+                                    className="text-red-600"
+                                    onClick={() => {
+                                      setCancelOrder(order);
+                                      setCancelDialogOpen(true);
+                                    }}
+                                  >
+                                    Cancel Order
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           </CardContent>
         </Card>
