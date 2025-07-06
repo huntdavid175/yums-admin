@@ -13,8 +13,8 @@ import {
 } from "../schemas/firestore";
 import type {
   Order,
-  MenuItem,
-  Category,
+  //   MenuItem,
+  //   Category,
   OrderStatus,
 } from "../schemas/firestore";
 

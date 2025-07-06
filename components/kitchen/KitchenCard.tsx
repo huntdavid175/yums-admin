@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, MapPin, Utensils, CheckCircle } from "lucide-react";
+import { Phone, MapPin } from "lucide-react";
 import React from "react";
 import { useNow } from "@/components/ui/useNow";
 
