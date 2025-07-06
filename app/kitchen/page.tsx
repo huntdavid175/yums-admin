@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  //   CardDescription,
+  //   CardHeader,
+  //   CardTitle,
 } from "@/components/ui/card";
 import {
   Bell,
@@ -21,7 +21,7 @@ import {
   MoreHorizontal,
   MapPin,
   Phone,
-  X,
+  //   X,
   DollarSign,
 } from "lucide-react";
 import {
@@ -92,11 +92,11 @@ const getItemStatusIcon = (status: string) => {
 
 const getPaymentStatusColor = (status: string) => {
   switch (status) {
-    case "Paid":
+    case "paid":
       return "bg-green-100 text-green-800";
-    case "Pending":
+    case "pending":
       return "bg-yellow-100 text-yellow-800";
-    case "Failed":
+    case "failed":
       return "bg-red-100 text-red-800";
     default:
       return "bg-gray-100 text-gray-800";
@@ -312,7 +312,7 @@ export default function KitchenView() {
             <>
               {/* New Orders */}
               <div>
-                <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center">
+                <h2 className="text-sm md:text-base font-semibold mb-4 flex items-center">
                   <AlertCircle className="h-4 w-4 md:h-5 md:w-5 mr-2 text-blue-600" />
                   New Orders ({newOrders.length})
                 </h2>
@@ -340,7 +340,7 @@ export default function KitchenView() {
 
               {/* Preparing Orders */}
               <div>
-                <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center">
+                <h2 className="text-sm md:text-base font-semibold mb-4 flex items-center">
                   <Timer className="h-4 w-4 md:h-5 md:w-5 mr-2 text-yellow-600" />
                   Preparing ({preparingOrders.length})
                 </h2>
@@ -368,7 +368,7 @@ export default function KitchenView() {
 
               {/* Ready Orders */}
               <div>
-                <h2 className="text-base md:text-lg font-semibold mb-4 flex items-center">
+                <h2 className="text-sm md:text-base font-semibold mb-4 flex items-center">
                   <CheckCircle className="h-4 w-4 md:h-5 md:w-5 mr-2 text-green-600" />
                   Ready for{" "}
                   {readyOrders.some((o) => o.orderType === "delivery")
@@ -408,7 +408,7 @@ export default function KitchenView() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="flex items-center justify-between">
+                <DialogTitle className="flex items-center justify-between text-sm md:text-base">
                   Order Details - ORD-#
                   {selectedOrder?.orderNumber || selectedOrder?.id}
                   {/* <Button
@@ -420,7 +420,7 @@ export default function KitchenView() {
                     <X className="h-4 w-4" />
                   </Button> */}
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="text-sm">
                   Complete order information and kitchen management
                 </DialogDescription>
               </DialogHeader>
@@ -428,7 +428,7 @@ export default function KitchenView() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <h4 className="font-semibold mb-2">
+                      <h4 className="font-semibold mb-2 text-sm md:text-base">
                         Customer Information
                       </h4>
                       <div className="space-y-1 text-sm">
@@ -452,7 +452,9 @@ export default function KitchenView() {
                       </div>
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Order Information</h4>
+                      <h4 className="font-semibold mb-2 text-sm md:text-base">
+                        Order Information
+                      </h4>
                       <div className="space-y-1 text-sm">
                         <p>
                           <strong>Order ID:</strong> #
@@ -545,7 +547,15 @@ export default function KitchenView() {
                           {selectedOrder.paidAt && (
                             <p className="text-sm">
                               <strong>Payment Time:</strong>{" "}
-                              {selectedOrder.paidAt.toLocaleString()}
+                              {(() => {
+                                const date =
+                                  typeof selectedOrder.paidAt === "string"
+                                    ? new Date(selectedOrder.paidAt)
+                                    : selectedOrder.paidAt.toDate
+                                    ? selectedOrder.paidAt.toDate()
+                                    : selectedOrder.paidAt;
+                                return date.toLocaleString();
+                              })()}
                             </p>
                           )}
                           {selectedOrder.tip > 0 && (

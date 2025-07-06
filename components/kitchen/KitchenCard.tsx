@@ -48,7 +48,7 @@ export function KitchenCard({
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base md:text-lg">
+          <CardTitle className="text-sm md:text-base">
             ORD-#{order.orderNumber || order.id}
           </CardTitle>
           <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">

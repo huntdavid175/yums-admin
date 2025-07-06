@@ -19,7 +19,7 @@ import { categoryService, menuItemService } from "@/lib/services/firestore";
 import type { Category, MenuItem } from "@/lib/schemas/firestore";
 
 // import { subscribeUser, unsubscribeUser, sendNotification } from "./actions";
-import Link from "next/link";
+// import Link from "next/link";
 // import { ThemeToggle } from "@/components/theme-toggle"
 
 // Categories management with Firestore

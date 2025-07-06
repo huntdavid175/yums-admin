@@ -184,7 +184,7 @@ export default function TestSchemaPage() {
               <div className="text-center py-8">
                 <p className="text-gray-500">No categories found</p>
                 <p className="text-sm text-gray-400">
-                  Use "Seed Database" to add sample categories
+                  Use &quot;Seed Database&quot; to add sample categories
                 </p>
               </div>
             ) : (
@@ -242,7 +242,7 @@ export default function TestSchemaPage() {
               <div className="text-center py-8">
                 <p className="text-gray-500">No menu items found</p>
                 <p className="text-sm text-gray-400">
-                  Use "Seed Database" to add sample menu items
+                  Use &quot;Seed Database&quot; to add sample menu items
                 </p>
               </div>
             ) : (
