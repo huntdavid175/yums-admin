@@ -36,31 +36,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Edit, MoreHorizontal, Plus, Settings, Trash2 } from "lucide-react";
 import { MenuItemForm } from "./MenuItemForm";
-
-interface MenuItem {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  description: string;
-  comesWith: string;
-  available: boolean;
-  images: string[];
-  sizes: { name: string; price: number }[];
-  extras: { name: string; price: number }[];
-}
+import type { MenuItem, Category } from "@/lib/schemas/firestore";
+import { toast } from "react-hot-toast";
 
 interface MenuManagementProps {
   menuItems: MenuItem[];
-  categories: string[];
-  onAddMenuItem: (item: any) => void;
-  onUpdateMenuItem: (id: number, item: any) => void;
-  onDeleteMenuItem: (id: number) => void;
-  onAddCategory: () => void;
-  onRemoveCategory: (category: string) => void;
-  onUpdateCategory: (oldName: string, newName: string) => void;
-  newCategory: string;
-  setNewCategory: (value: string) => void;
+  categories: Category[];
+  onAddMenuItem: (
+    item: Omit<MenuItem, "id" | "createdAt" | "updatedAt">
+  ) => Promise<void>;
+  onUpdateMenuItem: (
+    itemId: string,
+    updates: Partial<MenuItem>
+  ) => Promise<void>;
+  onDeleteMenuItem: (itemId: string) => Promise<void>;
+  onAddCategory: (
+    categoryData: Omit<Category, "id" | "createdAt" | "updatedAt">
+  ) => Promise<void>;
+  onRemoveCategory: (categoryId: string) => Promise<void>;
+  onUpdateCategory: (
+    categoryId: string,
+    updates: Partial<Category>
+  ) => Promise<void>;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 export function MenuManagement({
@@ -72,22 +71,22 @@ export function MenuManagement({
   onAddCategory,
   onRemoveCategory,
   onUpdateCategory,
-  newCategory,
-  setNewCategory,
+  isLoading = false,
+  error = null,
 }: MenuManagementProps) {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<{
-    name: string;
-    index: number;
-  } | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isEditCategoryDialogOpen, setIsEditCategoryDialogOpen] =
     useState(false);
+  const [newCategory, setNewCategory] = useState("");
 
   // Category color generator
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category: Category) => {
+    if (category.color) return category.color;
+
     const colors = [
       "#FF6B6B",
       "#4ECDC4",
@@ -100,60 +99,72 @@ export function MenuManagement({
       "#BB8FCE",
       "#85C1E9",
     ];
-    const index = category
+    const index = category.name
       .split("")
       .reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return colors[index % colors.length];
   };
 
   // Enhanced category management functions
-  const handleEditCategory = (category: string, index: number) => {
-    setEditingCategory({ name: category, index });
-    setNewCategory(category);
+  const handleEditCategory = (category: Category) => {
+    setEditingCategory(category);
+    setNewCategory(category.name);
     setIsEditCategoryDialogOpen(true);
   };
 
-  const handleUpdateCategory = () => {
+  const handleUpdateCategory = async () => {
     if (
       editingCategory &&
       newCategory.trim() &&
       newCategory.trim() !== editingCategory.name
     ) {
-      const oldName = editingCategory.name;
-      const newName = newCategory.trim();
-
-      onUpdateCategory(oldName, newName);
-
-      setNewCategory("");
-      setEditingCategory(null);
-      setIsEditCategoryDialogOpen(false);
+      try {
+        await onUpdateCategory(editingCategory.id!, {
+          name: newCategory.trim(),
+        });
+        setNewCategory("");
+        setEditingCategory(null);
+        setIsEditCategoryDialogOpen(false);
+      } catch (err) {
+        console.error("Error updating category:", err);
+      }
     }
   };
 
-  const handleDeleteCategory = (categoryToDelete: string) => {
+  const handleDeleteCategory = async (categoryToDelete: Category) => {
     const itemsInCategory = menuItems.filter(
-      (item) => item.category === categoryToDelete
+      (item) => item.category === categoryToDelete.name
     );
 
     if (itemsInCategory.length > 0) {
       alert(
-        `Cannot delete category "${categoryToDelete}" because it contains ${itemsInCategory.length} menu items. Please move or delete these items first.`
+        `Cannot delete category "${categoryToDelete.name}" because it contains ${itemsInCategory.length} menu items. Please move or delete these items first.`
       );
       return;
     }
 
     if (
       confirm(
-        `Are you sure you want to delete the category "${categoryToDelete}"?`
+        `Are you sure you want to delete the category "${categoryToDelete.name}"?`
       )
     ) {
-      onRemoveCategory(categoryToDelete);
+      try {
+        await onRemoveCategory(categoryToDelete.id!);
+      } catch (err) {
+        console.error("Error deleting category:", err);
+      }
     }
   };
 
-  const handleAddItem = (formData: any) => {
-    onAddMenuItem(formData);
-    setIsAddDialogOpen(false);
+  const handleAddItem = async (formData: any) => {
+    try {
+      await onAddMenuItem(formData);
+      setIsAddDialogOpen(false);
+      toast.success("Menu item added successfully!");
+    } catch (err) {
+      console.error("Error adding menu item:", err);
+      toast.error("Failed to add menu item.");
+    }
   };
 
   const handleEditItem = (item: MenuItem) => {
@@ -161,19 +172,70 @@ export function MenuManagement({
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateItem = (formData: any) => {
+  const handleUpdateItem = async (formData: any) => {
     if (editingItem) {
-      onUpdateMenuItem(editingItem.id, formData);
-      setEditingItem(null);
-      setIsEditDialogOpen(false);
+      try {
+        await onUpdateMenuItem(editingItem.id!, formData);
+        setEditingItem(null);
+        setIsEditDialogOpen(false);
+        toast.success("Menu item updated successfully!");
+      } catch (err) {
+        console.error("Error updating menu item:", err);
+        toast.error("Failed to update menu item.");
+      }
     }
   };
 
-  const handleDeleteItem = (id: number) => {
+  const handleDeleteItem = async (item: MenuItem) => {
     if (confirm("Are you sure you want to delete this menu item?")) {
-      onDeleteMenuItem(id);
+      try {
+        await onDeleteMenuItem(item.id!);
+        toast.success("Menu item deleted successfully!");
+      } catch (err) {
+        console.error("Error deleting menu item:", err);
+        toast.error("Failed to delete menu item.");
+      }
     }
   };
+
+  const handleAddCategory = async () => {
+    if (newCategory.trim()) {
+      try {
+        await onAddCategory({
+          name: newCategory.trim(),
+          description: "",
+          color: "#FF6B6B",
+          sortOrder: categories.length,
+          active: true,
+        });
+        setNewCategory("");
+      } catch (err) {
+        console.error("Error adding category:", err);
+      }
+    }
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <TabsContent value="menu" className="space-y-4 md:space-y-6">
+        <div className="text-center py-8">
+          <p className="text-gray-500">Loading menu data...</p>
+        </div>
+      </TabsContent>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <TabsContent value="menu" className="space-y-4 md:space-y-6">
+        <div className="text-center py-8">
+          <p className="text-red-500">Error: {error}</p>
+        </div>
+      </TabsContent>
+    );
+  }
 
   return (
     <TabsContent value="menu" className="space-y-4 md:space-y-6">
@@ -202,7 +264,7 @@ export function MenuManagement({
                   </DialogDescription>
                 </DialogHeader>
                 <MenuItemForm
-                  categories={categories}
+                  categories={categories.map((cat) => cat.name)}
                   onSubmit={handleAddItem}
                   onCancel={() => setIsAddDialogOpen(false)}
                 />
@@ -215,10 +277,10 @@ export function MenuManagement({
             {menuItems.map((item) => (
               <Card key={item.id} className="overflow-hidden">
                 {/* Image */}
-                {item.images && item.images[0] && (
+                {item.image && (
                   <div className="aspect-video w-full overflow-hidden">
                     <img
-                      src={item.images[0] || "/placeholder.svg"}
+                      src={item.image || "/placeholder.svg"}
                       alt={item.name}
                       className="w-full h-full object-cover"
                     />
@@ -254,7 +316,7 @@ export function MenuManagement({
                         variant="outline"
                         size="icon"
                         className="h-8 w-8 bg-transparent"
-                        onClick={() => handleDeleteItem(item.id)}
+                        onClick={() => handleDeleteItem(item)}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -310,7 +372,7 @@ export function MenuManagement({
                   )}
 
                   <p className="price-text text-green-600">
-                    From ${item.price}
+                    From GH₵{item.price}
                   </p>
                 </div>
               </Card>
@@ -338,9 +400,12 @@ export function MenuManagement({
                   onChange={(e) => setNewCategory(e.target.value)}
                   placeholder="Enter category name"
                   className="w-full md:w-[200px]"
-                  onKeyPress={(e) => e.key === "Enter" && onAddCategory()}
+                  onKeyPress={(e) => e.key === "Enter" && handleAddCategory()}
                 />
-                <Button onClick={onAddCategory} disabled={!newCategory.trim()}>
+                <Button
+                  onClick={handleAddCategory}
+                  disabled={!newCategory.trim()}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Category
                 </Button>
@@ -351,19 +416,22 @@ export function MenuManagement({
         <CardContent>
           {/* Categories Grid */}
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {categories.map((category, index) => (
+            {categories.map((category) => (
               <Card
-                key={category}
+                key={category.id}
                 className="p-4 hover:shadow-md transition-shadow"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold truncate">{category}</h4>
+                      <h4 className="font-semibold truncate">
+                        {category.name}
+                      </h4>
                       <p className="text-sm text-gray-500">
                         {
-                          menuItems.filter((item) => item.category === category)
-                            .length
+                          menuItems.filter(
+                            (item) => item.category === category.name
+                          ).length
                         }{" "}
                         items
                       </p>
@@ -376,7 +444,7 @@ export function MenuManagement({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => handleEditCategory(category, index)}
+                          onClick={() => handleEditCategory(category)}
                         >
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Category
@@ -385,7 +453,7 @@ export function MenuManagement({
                           onClick={() => handleDeleteCategory(category)}
                           className="text-red-600"
                           disabled={menuItems.some(
-                            (item) => item.category === category
+                            (item) => item.category === category.name
                           )}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
@@ -413,13 +481,15 @@ export function MenuManagement({
                     Available:{" "}
                     {
                       menuItems.filter(
-                        (item) => item.category === category && item.available
+                        (item) =>
+                          item.category === category.name && item.available
                       ).length
                     }{" "}
                     | Unavailable:{" "}
                     {
                       menuItems.filter(
-                        (item) => item.category === category && !item.available
+                        (item) =>
+                          item.category === category.name && !item.available
                       ).length
                     }
                   </div>
@@ -482,60 +552,12 @@ export function MenuManagement({
             <DialogDescription>Update the menu item details.</DialogDescription>
           </DialogHeader>
           <MenuItemForm
-            categories={categories}
+            categories={categories.map((cat) => cat.name)}
             initialItem={editingItem}
             onSubmit={handleUpdateItem}
             onCancel={() => setIsEditDialogOpen(false)}
             isEdit={true}
           />
-        </DialogContent>
-      </Dialog>
-
-      {/* Category Management Dialog */}
-      <Dialog
-        open={isCategoryDialogOpen}
-        onOpenChange={setIsCategoryDialogOpen}
-      >
-        <DialogContent className="w-[95vw] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Manage Categories</DialogTitle>
-            <DialogDescription>
-              Add or remove menu categories.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="New category name"
-                className="flex-1"
-              />
-              <Button onClick={onAddCategory}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {categories.map((category) => (
-                <div
-                  key={category}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded"
-                >
-                  <span>{category}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onRemoveCategory(category)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsCategoryDialogOpen(false)}>Done</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

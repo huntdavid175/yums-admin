@@ -50,6 +50,8 @@ import {
 import firebaseApp from "@/lib/firebase";
 import { formatRelativeTime, capitalizeStatus } from "@/helpers/helpers";
 import Link from "next/link";
+import { KitchenCard } from "@/components/kitchen/KitchenCard";
+import { LiveClock } from "@/components/ui/LiveClock";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -102,19 +104,10 @@ const getPaymentStatusColor = (status: string) => {
 };
 
 export default function KitchenView() {
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   // Fetch orders from Firestore
   useEffect(() => {
@@ -136,17 +129,6 @@ export default function KitchenView() {
 
     return () => unsubscribe();
   }, []);
-
-  const formatElapsedTime = (orderTime: any) => {
-    if (!orderTime) return "0m";
-
-    // Handle Firestore timestamp
-    const time = orderTime.toDate ? orderTime.toDate() : new Date(orderTime);
-    const elapsed = Math.floor(
-      (currentTime.getTime() - time.getTime()) / 1000 / 60
-    );
-    return `${elapsed}m`;
-  };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -213,14 +195,7 @@ export default function KitchenView() {
           {/* Mobile & Desktop Right Section */}
           <div className="flex items-center space-x-2 md:space-x-4">
             {/* Time Display */}
-            <div className="text-right">
-              <div className="text-xs md:text-sm font-medium">
-                {currentTime.toLocaleTimeString()}
-              </div>
-              <div className="text-xs text-gray-500 hidden md:block">
-                {currentTime.toLocaleDateString()}
-              </div>
-            </div>
+            <LiveClock />
 
             {/* Mobile Navigation */}
             <div className="md:hidden">
@@ -343,124 +318,22 @@ export default function KitchenView() {
                 </h2>
                 <div className="space-y-3 md:space-y-4">
                   {newOrders.map((order) => (
-                    <Card
+                    <KitchenCard
                       key={order.id}
-                      className="border-l-4 border-l-blue-500 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95"
+                      order={order}
+                      statusColor="bg-blue-50"
+                      borderColor="border-l-blue-500"
                       onClick={() => handleCardClick(order)}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base md:text-lg">
-                            ORD-{order.orderNumber || order.id}
-                          </CardTitle>
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                            <Badge
-                              className={`${getPriorityColor(
-                                order.priority || "normal"
-                              )} text-xs`}
-                            >
-                              {order.priority || "normal"}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {capitalizeStatus(order.orderType) || "delivery"}
-                            </Badge>
-                          </div>
-                        </div>
-                        <CardDescription className="text-xs md:text-sm">
-                          {formatRelativeTime(order.createdAt, currentTime)}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {/* Customer & Delivery Info */}
-                        <div className="mb-3 p-2 bg-blue-50 rounded text-xs md:text-sm">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <strong>{order.customerName}</strong>
-                              <a
-                                href={`tel:${order.customerPhone}`}
-                                className="text-blue-600"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Phone className="h-3 w-3" />
-                              </a>
-                            </div>
-                            <span className="text-xs text-gray-600">
-                              {order.customerPhone}
-                            </span>
-                          </div>
-                          <div className="flex items-start gap-1">
-                            <MapPin className="h-3 w-3 text-gray-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-gray-700">
-                                {order?.deliveryAddress?.street || "Pickup"}
-                              </p>
-                              <p className="text-orange-600 font-medium">
-                                {order.orderType === "delivery"
-                                  ? "25-40 min"
-                                  : order.estimatedDelivery ||
-                                    "Ready for pickup"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 mb-4">
-                          {order.items?.map((item: any, index: number) => (
-                            <div key={index} className="p-2 bg-gray-50 rounded">
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center space-x-2">
-                                  {getItemStatusIcon(item.status || "pending")}
-                                  <span className="font-medium text-sm">
-                                    {item.quantity}x {item.name}
-                                  </span>
-                                </div>
-                                <span className="text-xs text-gray-500">
-                                  {item.cookTime || 5}m
-                                </span>
-                              </div>
-                              {item.size && (
-                                <div className="flex items-center justify-between text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-medium">
-                                      {item.size}
-                                    </span>
-                                    {item.extras && item.extras.length > 0 && (
-                                      <span className="text-gray-600">
-                                        +{item.extras.length} extra
-                                        {item.extras.length > 1 ? "s" : ""}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                              {item.extras && item.extras.length > 0 && (
-                                <div className="mt-1 text-xs text-gray-600">
-                                  <span className="font-medium">Extras:</span>{" "}
-                                  {item.extras.slice(0, 2).join(", ")}
-                                  {item.extras.length > 2 &&
-                                    ` +${item.extras.length - 2} more`}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {order.notes && (
-                          <div className="mb-4 p-2 bg-yellow-50 rounded text-xs md:text-sm">
-                            <strong>Note:</strong> {order.notes}
-                          </div>
-                        )}
-                        <Button
-                          className="w-full text-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateOrderStatus(order.id, "preparing");
-                          }}
-                        >
-                          <Utensils className="h-4 w-4 mr-2" />
-                          Start Cooking
-                        </Button>
-                      </CardContent>
-                    </Card>
+                      onAction={() => updateOrderStatus(order.id, "preparing")}
+                      actionLabel="Start Cooking"
+                      actionIcon={<Utensils className="h-4 w-4 mr-2" />}
+                      getPriorityColor={getPriorityColor}
+                      capitalizeStatus={capitalizeStatus}
+                      getItemStatusIcon={getItemStatusIcon}
+                      formatRelativeTime={(createdAt, now) =>
+                        formatRelativeTime(createdAt, now ?? new Date())
+                      }
+                    />
                   ))}
                 </div>
               </div>
@@ -473,124 +346,22 @@ export default function KitchenView() {
                 </h2>
                 <div className="space-y-3 md:space-y-4">
                   {preparingOrders.map((order) => (
-                    <Card
+                    <KitchenCard
                       key={order.id}
-                      className="border-l-4 border-l-yellow-500 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95"
+                      order={order}
+                      statusColor="bg-yellow-50"
+                      borderColor="border-l-yellow-500"
                       onClick={() => handleCardClick(order)}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base md:text-lg">
-                            ORD-{order.orderNumber || order.id}
-                          </CardTitle>
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                            <Badge
-                              className={`${getPriorityColor(
-                                order.priority || "normal"
-                              )} text-xs`}
-                            >
-                              {order.priority || "normal"}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {capitalizeStatus(order.orderType) || "delivery"}
-                            </Badge>
-                          </div>
-                        </div>
-                        <CardDescription className="text-xs md:text-sm">
-                          {formatRelativeTime(order.createdAt, currentTime)}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {/* Customer & Delivery Info */}
-                        <div className="mb-3 p-2 bg-yellow-50 rounded text-xs md:text-sm">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <strong>{order.customerName}</strong>
-                              <a
-                                href={`tel:${order.customerPhone}`}
-                                className="text-blue-600"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Phone className="h-3 w-3" />
-                              </a>
-                            </div>
-                            <span className="text-xs text-gray-600">
-                              {order.customerPhone}
-                            </span>
-                          </div>
-                          <div className="flex items-start gap-1">
-                            <MapPin className="h-3 w-3 text-gray-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-gray-700">
-                                {order?.deliveryAddress?.street || "Pickup"}
-                              </p>
-                              <p className="text-orange-600 font-medium">
-                                {order.orderType === "delivery"
-                                  ? "25-40 min"
-                                  : order.estimatedDelivery ||
-                                    "Ready for pickup"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 mb-4">
-                          {order.items?.map((item: any, index: number) => (
-                            <div key={index} className="p-2 bg-gray-50 rounded">
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center space-x-2">
-                                  {getItemStatusIcon(item.status || "cooking")}
-                                  <span className="font-medium text-sm">
-                                    {item.quantity}x {item.name}
-                                  </span>
-                                </div>
-                                <span className="text-xs text-gray-500">
-                                  {item.cookTime || 5}m
-                                </span>
-                              </div>
-                              {item.size && (
-                                <div className="flex items-center justify-between text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-medium">
-                                      {item.size}
-                                    </span>
-                                    {item.extras && item.extras.length > 0 && (
-                                      <span className="text-gray-600">
-                                        +{item.extras.length} extra
-                                        {item.extras.length > 1 ? "s" : ""}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                              {item.extras && item.extras.length > 0 && (
-                                <div className="mt-1 text-xs text-gray-600">
-                                  <span className="font-medium">Extras:</span>{" "}
-                                  {item.extras.slice(0, 2).join(", ")}
-                                  {item.extras.length > 2 &&
-                                    ` +${item.extras.length - 2} more`}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {order.notes && (
-                          <div className="mb-4 p-2 bg-yellow-50 rounded text-xs md:text-sm">
-                            <strong>Note:</strong> {order.notes}
-                          </div>
-                        )}
-                        <Button
-                          className="w-full text-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateOrderStatus(order.id, "ready");
-                          }}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Mark as Ready
-                        </Button>
-                      </CardContent>
-                    </Card>
+                      onAction={() => updateOrderStatus(order.id, "ready")}
+                      actionLabel="Mark as Ready"
+                      actionIcon={<CheckCircle className="h-4 w-4 mr-2" />}
+                      getPriorityColor={getPriorityColor}
+                      capitalizeStatus={capitalizeStatus}
+                      getItemStatusIcon={getItemStatusIcon}
+                      formatRelativeTime={(createdAt, now) =>
+                        formatRelativeTime(createdAt, now ?? new Date())
+                      }
+                    />
                   ))}
                 </div>
               </div>
@@ -607,127 +378,26 @@ export default function KitchenView() {
                 </h2>
                 <div className="space-y-3 md:space-y-4">
                   {readyOrders.map((order) => (
-                    <Card
+                    <KitchenCard
                       key={order.id}
-                      className="border-l-4 border-l-green-500 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95"
+                      order={order}
+                      statusColor="bg-green-50"
+                      borderColor="border-l-green-500"
                       onClick={() => handleCardClick(order)}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base md:text-lg">
-                            ORD-{order.orderNumber || order.id}
-                          </CardTitle>
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                            <Badge
-                              className={`${getPriorityColor(
-                                order.priority || "normal"
-                              )} text-xs`}
-                            >
-                              {order.priority || "normal"}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {capitalizeStatus(order.orderType) || "delivery"}
-                            </Badge>
-                          </div>
-                        </div>
-                        <CardDescription className="text-xs md:text-sm">
-                          Ready for {formatElapsedTime(order.createdAt)}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {/* Customer & Delivery Info */}
-                        <div className="mb-3 p-2 bg-green-50 rounded text-xs md:text-sm">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <strong>{order.customerName}</strong>
-                              <a
-                                href={`tel:${order.customerPhone}`}
-                                className="text-blue-600"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Phone className="h-3 w-3" />
-                              </a>
-                            </div>
-                            <span className="text-xs text-gray-600">
-                              {order.customerPhone}
-                            </span>
-                          </div>
-                          <div className="flex items-start gap-1">
-                            <MapPin className="h-3 w-3 text-gray-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-gray-700">
-                                {order?.deliveryAddress?.street || "Pickup"}
-                              </p>
-                              <p className="text-green-600 font-medium">
-                                {order.orderType === "delivery"
-                                  ? "Ready for Delivery"
-                                  : "Ready for Pickup"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 mb-4">
-                          {order.items?.map((item: any, index: number) => (
-                            <div
-                              key={index}
-                              className="p-2 bg-green-50 rounded"
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center space-x-2">
-                                  {getItemStatusIcon("ready")}
-                                  <span className="font-medium text-sm">
-                                    {item.quantity}x {item.name}
-                                  </span>
-                                </div>
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                              </div>
-                              {item.size && (
-                                <div className="flex items-center justify-between text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-medium">
-                                      {item.size}
-                                    </span>
-                                    {item.extras && item.extras.length > 0 && (
-                                      <span className="text-gray-600">
-                                        +{item.extras.length} extra
-                                        {item.extras.length > 1 ? "s" : ""}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                              {item.extras && item.extras.length > 0 && (
-                                <div className="mt-1 text-xs text-gray-600">
-                                  <span className="font-medium">Extras:</span>{" "}
-                                  {item.extras.slice(0, 2).join(", ")}
-                                  {item.extras.length > 2 &&
-                                    ` +${item.extras.length - 2} more`}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {order.notes && (
-                          <div className="mb-4 p-2 bg-yellow-50 rounded text-xs md:text-sm">
-                            <strong>Note:</strong> {order.notes}
-                          </div>
-                        )}
-                        <Button
-                          variant="outline"
-                          className="w-full bg-transparent text-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateOrderStatus(order.id, "delivered");
-                          }}
-                        >
-                          Mark as{" "}
-                          {order.orderType === "delivery"
-                            ? "Delivered"
-                            : "Picked Up"}
-                        </Button>
-                      </CardContent>
-                    </Card>
+                      onAction={() => updateOrderStatus(order.id, "delivered")}
+                      actionLabel={`Mark as ${
+                        order.orderType === "delivery"
+                          ? "Delivered"
+                          : "Picked Up"
+                      }`}
+                      actionIcon={null}
+                      getPriorityColor={getPriorityColor}
+                      capitalizeStatus={capitalizeStatus}
+                      getItemStatusIcon={getItemStatusIcon}
+                      formatRelativeTime={(createdAt, now) =>
+                        formatRelativeTime(createdAt, now ?? new Date())
+                      }
+                    />
                   ))}
                 </div>
               </div>
@@ -739,16 +409,16 @@ export default function KitchenView() {
             <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center justify-between">
-                  Order Details -{" "}
+                  Order Details - ORD-#
                   {selectedOrder?.orderNumber || selectedOrder?.id}
-                  <Button
+                  {/* <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsDialogOpen(false)}
                     className="h-6 w-6"
                   >
                     <X className="h-4 w-4" />
-                  </Button>
+                  </Button> */}
                 </DialogTitle>
                 <DialogDescription>
                   Complete order information and kitchen management
@@ -761,7 +431,7 @@ export default function KitchenView() {
                       <h4 className="font-semibold mb-2">
                         Customer Information
                       </h4>
-                      <div className="space-y-1">
+                      <div className="space-y-1 text-sm">
                         <div className="flex items-center gap-2">
                           <strong>Name:</strong> {selectedOrder.customerName}
                           <a
@@ -783,9 +453,9 @@ export default function KitchenView() {
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">Order Information</h4>
-                      <div className="space-y-1">
+                      <div className="space-y-1 text-sm">
                         <p>
-                          <strong>Order ID:</strong>{" "}
+                          <strong>Order ID:</strong> #
                           {selectedOrder.orderNumber || selectedOrder.id}
                         </p>
                         <p>
@@ -810,7 +480,7 @@ export default function KitchenView() {
                           <strong>Time:</strong>{" "}
                           {formatRelativeTime(
                             selectedOrder.createdAt,
-                            currentTime
+                            new Date()
                           )}{" "}
                         </p>
                       </div>
@@ -822,7 +492,7 @@ export default function KitchenView() {
                       <MapPin className="h-4 w-4" />
                       Delivery Information
                     </h4>
-                    <div className="p-3 bg-gray-50 rounded space-y-2">
+                    <div className="p-3 bg-gray-50 rounded space-y-2 text-sm">
                       <p>
                         <strong>Address:</strong>{" "}
                         {selectedOrder?.deliveryAddress?.street || "Pickup"}
@@ -839,7 +509,7 @@ export default function KitchenView() {
                       <DollarSign className="h-4 w-4" />
                       Payment Information
                     </h4>
-                    <div className="p-3 bg-gray-50 rounded space-y-3">
+                    <div className="p-3 bg-gray-50 rounded space-y-3 text-sm">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm">
@@ -897,29 +567,29 @@ export default function KitchenView() {
                       {selectedOrder.items?.map((item: any, index: number) => (
                         <div
                           key={index}
-                          className="p-4 bg-gray-50 rounded-lg border"
+                          className="p-4 bg-gray-50 rounded-lg border "
                         >
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex items-center gap-3">
                               {getItemStatusIcon(item.status || "pending")}
                               <div>
-                                <span className="font-medium text-lg">
+                                <span className="font-medium text-base">
                                   {item.quantity}x {item.name}
                                 </span>
                                 <div className="flex items-center gap-2 mt-1">
                                   {item.size && (
-                                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
                                       {capitalizeStatus(item.size)}
                                     </span>
                                   )}
-                                  <span className="text-sm text-gray-500">
+                                  <span className="text-xs text-gray-500">
                                     Cook time: {item.cookTime || 5}m • Status:{" "}
                                     {item.status || "pending"}
                                   </span>
                                 </div>
                               </div>
                             </div>
-                            <span className="font-bold text-lg">
+                            <span className="font-bold text-base">
                               GH₵
                               {(
                                 (item.quantity || 1) * (item.price || 0)
@@ -953,7 +623,7 @@ export default function KitchenView() {
                       {selectedOrder.total && (
                         <div className="border-t pt-3 space-y-2">
                           <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <span>Subtotal</span>
+                            <span className="text-sm">Subtotal</span>
                             <span className="font-medium">
                               GH₵{selectedOrder.subtotal?.toFixed(2) || "0.00"}
                             </span>
@@ -962,7 +632,7 @@ export default function KitchenView() {
                             selectedOrder.deliveryFee > 0 && (
                               <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
                                 <span>Delivery Fee</span>
-                                <span className="font-medium">
+                                <span className="font-medium text-sm">
                                   GH₵{selectedOrder.deliveryFee.toFixed(2)}
                                 </span>
                               </div>
@@ -976,8 +646,10 @@ export default function KitchenView() {
                             </div>
                           )} */}
                           <div className="flex justify-between items-center p-3 bg-green-100 rounded font-bold text-lg border-2 border-green-200">
-                            <span>Total Paid</span>
-                            <span>GH₵{selectedOrder.total.toFixed(2)}</span>
+                            <span className="text-base">Total Paid</span>
+                            <span className="text-base">
+                              GH₵{selectedOrder.total.toFixed(2)}
+                            </span>
                           </div>
                         </div>
                       )}

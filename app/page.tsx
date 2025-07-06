@@ -15,162 +15,182 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { OrderManagement } from "@/components/dashboard/OrderManagement";
 import { MenuManagement } from "@/components/dashboard/MenuManagement";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { categoryService, menuItemService } from "@/lib/services/firestore";
+import type { Category, MenuItem } from "@/lib/schemas/firestore";
 
 // import { subscribeUser, unsubscribeUser, sendNotification } from "./actions";
 import Link from "next/link";
 // import { ThemeToggle } from "@/components/theme-toggle"
 
-// Categories management
+// Categories management with Firestore
 function useCategoriesManager() {
-  const [categories, setCategories] = useState([
-    "Appetizer",
-    "Main Course",
-    "Dessert",
-    "Beverage",
-    "Side Dish",
-    "Salad",
-    "Pizza",
-    "Pasta",
-  ]);
-  const [newCategory, setNewCategory] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const addCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      setCategories((prev) => [...prev, newCategory.trim()]);
-      setNewCategory("");
+  // Load categories from Firestore
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setIsLoading(true);
+        const categoriesData = await categoryService.getCategories();
+        setCategories(categoriesData);
+        setError(null);
+      } catch (err) {
+        console.error("Error loading categories:", err);
+        setError("Failed to load categories");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  const addCategory = async (
+    categoryData: Omit<Category, "id" | "createdAt" | "updatedAt">
+  ) => {
+    try {
+      const categoryId = await categoryService.createCategory(categoryData);
+      // Reload categories to get the updated list
+      const updatedCategories = await categoryService.getCategories();
+      setCategories(updatedCategories);
+      return categoryId;
+    } catch (err) {
+      console.error("Error adding category:", err);
+      throw new Error("Failed to add category");
     }
   };
 
-  const removeCategory = (categoryToRemove: string) => {
-    setCategories((prev) => prev.filter((cat) => cat !== categoryToRemove));
+  const removeCategory = async (categoryId: string) => {
+    try {
+      await categoryService.deleteCategory(categoryId);
+      // Reload categories to get the updated list
+      const updatedCategories = await categoryService.getCategories();
+      setCategories(updatedCategories);
+    } catch (err) {
+      console.error("Error removing category:", err);
+      throw new Error("Failed to remove category");
+    }
   };
 
-  const updateCategory = (oldName: string, newName: string) => {
-    setCategories((prev) =>
-      prev.map((cat) => (cat === oldName ? newName : cat))
-    );
+  const updateCategory = async (
+    categoryId: string,
+    updates: Partial<Category>
+  ) => {
+    try {
+      await categoryService.updateCategory(categoryId, updates);
+      // Reload categories to get the updated list
+      const updatedCategories = await categoryService.getCategories();
+      setCategories(updatedCategories);
+    } catch (err) {
+      console.error("Error updating category:", err);
+      throw new Error("Failed to update category");
+    }
   };
 
   return {
     categories,
-    newCategory,
-    setNewCategory,
+    isLoading,
+    error,
     addCategory,
     removeCategory,
     updateCategory,
-    setCategories,
   };
 }
 
-// Custom hook for menu item management
+// Custom hook for menu item management with Firestore
 function useMenuItemManager() {
-  const [menuItems, setMenuItems] = useState([
-    {
-      id: 1,
-      name: "Classic Burger",
-      category: "Main Course",
-      price: 12.99,
-      description: "Beef patty with lettuce, tomato, and cheese",
-      comesWith: "French Fries, Pickle, Coleslaw",
-      available: true,
-      images: ["/placeholder.svg?height=200&width=300"],
-      sizes: [
-        { name: "Regular", price: 0 },
-        { name: "Large", price: 2.99 },
-        { name: "Extra Large", price: 4.99 },
-      ],
-      extras: [
-        { name: "Extra Cheese", price: 1.5 },
-        { name: "Bacon", price: 2.99 },
-        { name: "Avocado", price: 2.5 },
-        { name: "Extra Patty", price: 4.99 },
-      ],
-    },
-    {
-      id: 2,
-      name: "Margherita Pizza",
-      category: "Pizza",
-      price: 14.99,
-      description: "Fresh mozzarella, tomato sauce, and basil",
-      comesWith: "Garlic Bread, Parmesan Cheese",
-      available: true,
-      images: ["/placeholder.svg?height=200&width=300"],
-      sizes: [
-        { name: 'Small (10")', price: 0 },
-        { name: 'Medium (12")', price: 3.99 },
-        { name: 'Large (14")', price: 6.99 },
-        { name: 'Family (16")', price: 9.99 },
-      ],
-      extras: [
-        { name: "Extra Cheese", price: 2.0 },
-        { name: "Pepperoni", price: 2.5 },
-        { name: "Mushrooms", price: 1.5 },
-        { name: "Olives", price: 1.5 },
-        { name: "Bell Peppers", price: 1.5 },
-      ],
-    },
-  ]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const addMenuItem = (item: any) => {
-    const newItem = {
-      ...item,
-      id: Math.max(...menuItems.map((i) => i.id), 0) + 1,
-      price: Number.parseFloat(item.price) || 0,
-      sizes: item.sizes.map((s: any) => ({
-        ...s,
-        price: Number.parseFloat(s.price) || 0,
-      })),
-      extras: item.extras.map((e: any) => ({
-        ...e,
-        price: Number.parseFloat(e.price) || 0,
-      })),
+  // Load menu items from Firestore
+  useEffect(() => {
+    const loadMenuItems = async () => {
+      try {
+        setIsLoading(true);
+        const menuItemsData = await menuItemService.getMenuItems();
+        setMenuItems(menuItemsData);
+        setError(null);
+      } catch (err) {
+        console.error("Error loading menu items:", err);
+        setError("Failed to load menu items");
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setMenuItems((prev) => [...prev, newItem]);
+
+    loadMenuItems();
+  }, []);
+
+  const addMenuItem = async (
+    menuItemData: Omit<MenuItem, "id" | "createdAt" | "updatedAt">
+  ) => {
+    try {
+      const itemId = await menuItemService.createMenuItem(menuItemData);
+      // Reload menu items to get the updated list
+      const updatedMenuItems = await menuItemService.getMenuItems();
+      setMenuItems(updatedMenuItems);
+      return itemId;
+    } catch (err) {
+      console.error("Error adding menu item:", err);
+      throw new Error("Failed to add menu item");
+    }
   };
 
-  const updateMenuItem = (id: number, updatedItem: any) => {
-    const updated = {
-      ...updatedItem,
-      id,
-      price: Number.parseFloat(updatedItem.price) || 0,
-      sizes: updatedItem.sizes.map((s: any) => ({
-        ...s,
-        price: Number.parseFloat(s.price) || 0,
-      })),
-      extras: updatedItem.extras.map((e: any) => ({
-        ...e,
-        price: Number.parseFloat(e.price) || 0,
-      })),
-    };
-    setMenuItems((prev) =>
-      prev.map((item) => (item.id === id ? updated : item))
-    );
+  const updateMenuItem = async (itemId: string, updates: Partial<MenuItem>) => {
+    try {
+      await menuItemService.updateMenuItem(itemId, updates);
+      // Reload menu items to get the updated list
+      const updatedMenuItems = await menuItemService.getMenuItems();
+      setMenuItems(updatedMenuItems);
+    } catch (err) {
+      console.error("Error updating menu item:", err);
+      throw new Error("Failed to update menu item");
+    }
   };
 
-  const deleteMenuItem = (id: number) => {
-    setMenuItems((prev) => prev.filter((item) => item.id !== id));
+  const deleteMenuItem = async (itemId: string) => {
+    try {
+      await menuItemService.deleteMenuItem(itemId);
+      // Reload menu items to get the updated list
+      const updatedMenuItems = await menuItemService.getMenuItems();
+      setMenuItems(updatedMenuItems);
+    } catch (err) {
+      console.error("Error deleting menu item:", err);
+      throw new Error("Failed to delete menu item");
+    }
   };
 
   return {
     menuItems,
+    isLoading,
+    error,
     addMenuItem,
     updateMenuItem,
     deleteMenuItem,
-    setMenuItems,
   };
 }
 
 export default function RestaurantDashboard() {
   const {
     categories,
-    newCategory,
-    setNewCategory,
+    isLoading: categoriesLoading,
+    error: categoriesError,
     addCategory,
     removeCategory,
     updateCategory,
   } = useCategoriesManager();
-  const { menuItems, addMenuItem, updateMenuItem, deleteMenuItem } =
-    useMenuItemManager();
+
+  const {
+    menuItems,
+    isLoading: menuItemsLoading,
+    error: menuItemsError,
+    addMenuItem,
+    updateMenuItem,
+    deleteMenuItem,
+  } = useMenuItemManager();
 
   const [orders, setOrders] = useState<any[]>([]);
 
@@ -190,6 +210,66 @@ export default function RestaurantDashboard() {
 
   const updateOrderStatus = (orderId: string, newStatus: string) => {
     console.log(`Updating order ${orderId} to ${newStatus}`);
+  };
+
+  // Handle category operations
+  const handleAddCategory = async (
+    categoryData: Omit<Category, "id" | "createdAt" | "updatedAt">
+  ) => {
+    try {
+      await addCategory(categoryData);
+    } catch (err) {
+      console.error("Error adding category:", err);
+    }
+  };
+
+  const handleRemoveCategory = async (categoryId: string) => {
+    try {
+      await removeCategory(categoryId);
+    } catch (err) {
+      console.error("Error removing category:", err);
+    }
+  };
+
+  const handleUpdateCategory = async (
+    categoryId: string,
+    updates: Partial<Category>
+  ) => {
+    try {
+      await updateCategory(categoryId, updates);
+    } catch (err) {
+      console.error("Error updating category:", err);
+    }
+  };
+
+  // Handle menu item operations
+  const handleAddMenuItem = async (
+    menuItemData: Omit<MenuItem, "id" | "createdAt" | "updatedAt">
+  ) => {
+    try {
+      await addMenuItem(menuItemData);
+    } catch (err) {
+      console.error("Error adding menu item:", err);
+    }
+  };
+
+  const handleUpdateMenuItem = async (
+    itemId: string,
+    updates: Partial<MenuItem>
+  ) => {
+    try {
+      await updateMenuItem(itemId, updates);
+    } catch (err) {
+      console.error("Error updating menu item:", err);
+    }
+  };
+
+  const handleDeleteMenuItem = async (itemId: string) => {
+    try {
+      await deleteMenuItem(itemId);
+    } catch (err) {
+      console.error("Error deleting menu item:", err);
+    }
   };
 
   return (
@@ -224,14 +304,14 @@ export default function RestaurantDashboard() {
           <MenuManagement
             menuItems={menuItems}
             categories={categories}
-            onAddMenuItem={addMenuItem}
-            onUpdateMenuItem={updateMenuItem}
-            onDeleteMenuItem={deleteMenuItem}
-            onAddCategory={addCategory}
-            onRemoveCategory={removeCategory}
-            onUpdateCategory={updateCategory}
-            newCategory={newCategory}
-            setNewCategory={setNewCategory}
+            onAddMenuItem={handleAddMenuItem}
+            onUpdateMenuItem={handleUpdateMenuItem}
+            onDeleteMenuItem={handleDeleteMenuItem}
+            onAddCategory={handleAddCategory}
+            onRemoveCategory={handleRemoveCategory}
+            onUpdateCategory={handleUpdateCategory}
+            isLoading={categoriesLoading || menuItemsLoading}
+            error={categoriesError || menuItemsError}
           />
         </Tabs>
       </main>

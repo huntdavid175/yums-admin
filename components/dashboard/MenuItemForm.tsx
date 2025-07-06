@@ -11,24 +11,18 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
+import type { MenuItem } from "@/lib/schemas/firestore";
 
-interface MenuItem {
-  id?: number;
-  name: string;
-  category: string;
-  price: number;
-  description: string;
-  comesWith: string;
-  available: boolean;
-  images: string[];
-  sizes: { name: string; price: number }[];
-  extras: { name: string; price: number }[];
+function toId(str: string) {
+  return str.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
 interface MenuItemFormProps {
   categories: string[];
   initialItem?: MenuItem | null;
-  onSubmit: (formData: any) => void;
+  onSubmit: (
+    formData: Omit<MenuItem, "id" | "createdAt" | "updatedAt">
+  ) => void;
   onCancel: () => void;
   isEdit?: boolean;
 }
@@ -47,9 +41,16 @@ export function MenuItemForm({
     description: "",
     comesWith: "",
     available: true,
-    images: [""],
+    image: "",
     sizes: [{ name: "", price: "" }],
     extras: [{ name: "", price: "" }],
+  });
+
+  const [errors, setErrors] = useState({
+    name: "",
+    category: "",
+    price: "",
+    image: "",
   });
 
   useEffect(() => {
@@ -59,9 +60,9 @@ export function MenuItemForm({
         category: initialItem.category,
         price: initialItem.price.toString(),
         description: initialItem.description,
-        comesWith: initialItem.comesWith,
+        comesWith: initialItem.comesWith || "",
         available: initialItem.available,
-        images: initialItem.images.length > 0 ? initialItem.images : [""],
+        image: initialItem.image || "",
         sizes:
           initialItem.sizes.length > 0
             ? initialItem.sizes.map((s) => ({
@@ -88,10 +89,11 @@ export function MenuItemForm({
       description: "",
       comesWith: "",
       available: true,
-      images: [""],
+      image: "",
       sizes: [{ name: "", price: "" }],
       extras: [{ name: "", price: "" }],
     });
+    setErrors({ name: "", category: "", price: "", image: "" });
   };
 
   // Dynamic array helpers
@@ -121,37 +123,55 @@ export function MenuItemForm({
       extras: p.extras.map((e, k) => (k === i ? { ...e, [f]: v } : e)),
     }));
 
-  const addImage = () =>
-    setFormData((p) => ({ ...p, images: [...p.images, ""] }));
-  const removeImage = (i: number) =>
-    setFormData((p) => ({ ...p, images: p.images.filter((_, k) => k !== i) }));
-  const updateImage = (i: number, v: string) =>
-    setFormData((p) => ({
-      ...p,
-      images: p.images.map((img, k) => (k === i ? v : img)),
-    }));
+  const validate = () => {
+    const newErrors = { name: "", category: "", price: "", image: "" };
+    let valid = true;
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
+      valid = false;
+    }
+    if (!formData.category) {
+      newErrors.category = "Category is required";
+      valid = false;
+    }
+    if (!formData.price || isNaN(Number(formData.price))) {
+      newErrors.price = "Valid price is required";
+      valid = false;
+    }
+    if (!formData.image.trim()) {
+      newErrors.image = "Image is required";
+      valid = false;
+    }
+    setErrors(newErrors);
+    return valid;
+  };
 
   const handleSubmit = () => {
-    // Validate required fields
-    if (!formData.name.trim() || !formData.category || !formData.price) {
-      alert("Please fill in all required fields (Name, Category, Price)");
-      return;
-    }
-
+    if (!validate()) return;
     // Prepare data for submission
-    const submitData = {
-      ...formData,
+    const submitData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> = {
+      name: formData.name.trim(),
+      category: formData.category,
       price: Number.parseFloat(formData.price) || 0,
-      sizes: formData.sizes.map((s) => ({
-        ...s,
-        price: Number.parseFloat(s.price) || 0,
-      })),
-      extras: formData.extras.map((e) => ({
-        ...e,
-        price: Number.parseFloat(e.price) || 0,
-      })),
+      description: formData.description.trim(),
+      comesWith: formData.comesWith.trim() || undefined,
+      available: formData.available,
+      image: formData.image.trim(),
+      sizes: formData.sizes
+        .filter((s) => s.name.trim() !== "")
+        .map((s) => ({
+          id: toId(s.name),
+          name: s.name.trim(),
+          price: Number.parseFloat(s.price) || 0,
+        })),
+      extras: formData.extras
+        .filter((e) => e.name.trim() !== "")
+        .map((e) => ({
+          id: toId(e.name),
+          name: e.name.trim(),
+          price: Number.parseFloat(e.price) || 0,
+        })),
     };
-
     onSubmit(submitData);
     resetForm();
   };
@@ -173,7 +193,11 @@ export function MenuItemForm({
                 setFormData({ ...formData, name: e.target.value })
               }
               placeholder="e.g., Classic Burger"
+              className={errors.name ? "border-red-500" : ""}
             />
+            {errors.name && (
+              <span className="text-xs text-red-600">{errors.name}</span>
+            )}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="category">Category *</Label>
@@ -183,7 +207,9 @@ export function MenuItemForm({
                 setFormData({ ...formData, category: value })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger
+                className={errors.category ? "border-red-500" : ""}
+              >
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
@@ -194,6 +220,9 @@ export function MenuItemForm({
                 ))}
               </SelectContent>
             </Select>
+            {errors.category && (
+              <span className="text-xs text-red-600">{errors.category}</span>
+            )}
           </div>
         </div>
         <div className="grid gap-2">
@@ -207,7 +236,11 @@ export function MenuItemForm({
               setFormData({ ...formData, price: e.target.value })
             }
             placeholder="0.00"
+            className={errors.price ? "border-red-500" : ""}
           />
+          {errors.price && (
+            <span className="text-xs text-red-600">{errors.price}</span>
+          )}
         </div>
         <div className="grid gap-2">
           <Label htmlFor="description">Description *</Label>
@@ -238,36 +271,23 @@ export function MenuItemForm({
         </div>
       </div>
 
-      {/* Images */}
+      {/* Image */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="font-semibold text-lg border-b pb-2 flex-1">Images</h4>
-          <Button type="button" variant="outline" size="sm" onClick={addImage}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Image
-          </Button>
+          <h4 className="font-semibold text-lg border-b pb-2 flex-1">Image</h4>
         </div>
         <div className="space-y-3">
-          {formData.images.map((image, index) => (
-            <div key={index} className="flex gap-2">
-              <Input
-                value={image}
-                onChange={(e) => updateImage(index, e.target.value)}
-                placeholder="Image URL or upload path"
-                className="flex-1"
-              />
-              {formData.images.length > 1 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeImage(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ))}
+          <Input
+            value={formData.image}
+            onChange={(e) =>
+              setFormData({ ...formData, image: e.target.value })
+            }
+            placeholder="Image URL or upload path"
+            className={errors.image ? "border-red-500" : ""}
+          />
+          {errors.image && (
+            <span className="text-xs text-red-600">{errors.image}</span>
+          )}
         </div>
       </div>
 
