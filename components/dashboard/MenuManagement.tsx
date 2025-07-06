@@ -246,7 +246,7 @@ export function MenuManagement({
             <div>
               <CardTitle className="text-lg md:text-xl">Menu Items</CardTitle>
               <CardDescription>
-                Manage your restaurant's menu items
+                Manage your restaurant&apos;s menu items
               </CardDescription>
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
