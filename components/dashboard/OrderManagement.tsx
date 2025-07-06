@@ -30,6 +30,7 @@ interface Order {
   id: string;
   customerName: string;
   customerPhone: string;
+  orderNumber: string;
   items: any[];
   total: number;
   status: string;
@@ -96,7 +97,7 @@ export function OrderManagement({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">
-                      ORD-{order.id.slice(2, 6)}
+                      ORD-#{order.orderNumber}
                     </span>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs capitalize">
@@ -200,7 +201,7 @@ export function OrderManagement({
                 {orders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">
-                      ORD-{order.id.slice(2, 6)}
+                      ORD-#{order.orderNumber}
                     </TableCell>
                     <TableCell>
                       <div>

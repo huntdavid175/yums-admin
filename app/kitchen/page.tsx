@@ -114,7 +114,7 @@ export default function KitchenView() {
     const db = getFirestore(firebaseApp);
     const q = query(
       collection(db, "orders"),
-      orderBy("createdAt", "desc"),
+      orderBy("createdAt", "asc"),
       limit(50)
     );
 

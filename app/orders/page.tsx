@@ -359,7 +359,9 @@ export default function OrdersPage() {
                     <Card key={order.id} className="p-4">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          {/* <span className="font-medium">{order.id}</span> */}
+                          <span className="font-medium">
+                            ORD-#{order.orderNumber}
+                          </span>
                           <div className="flex items-center gap-2">
                             <Badge
                               variant="outline"
@@ -435,7 +437,8 @@ export default function OrdersPage() {
                             <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle>
-                                  Order Details - {selectedOrder?.id}
+                                  Order Details - ORD-#
+                                  {selectedOrder?.orderNumber}
                                 </DialogTitle>
                                 <DialogDescription>
                                   Complete order information and delivery
@@ -699,7 +702,7 @@ export default function OrdersPage() {
                     {orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">
-                          {order.id}
+                          ORD-#{order.orderNumber}
                         </TableCell>
                         <TableCell>
                           <div>
@@ -770,7 +773,8 @@ export default function OrdersPage() {
                               <DialogContent className="max-w-2xl">
                                 <DialogHeader>
                                   <DialogTitle>
-                                    Order Details - {selectedOrder?.id}
+                                    Order Details - ORD-#
+                                    {selectedOrder?.orderNumber}
                                   </DialogTitle>
                                   <DialogDescription>
                                     Complete order information and delivery

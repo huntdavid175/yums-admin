@@ -17,6 +17,8 @@ import { MenuManagement } from "@/components/dashboard/MenuManagement";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { categoryService, menuItemService } from "@/lib/services/firestore";
 import type { Category, MenuItem } from "@/lib/schemas/firestore";
+import { ServiceWorkerRegister } from "@/components/notifications/ServiceWorkerResgister";
+import { SoundNotificationManager } from "@/components/notifications/SoundNotificationManager";
 
 // import { subscribeUser, unsubscribeUser, sendNotification } from "./actions";
 // import Link from "next/link";
