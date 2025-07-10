@@ -15,7 +15,6 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { OrderManagement } from "@/components/dashboard/OrderManagement";
 import { MenuManagement } from "@/components/dashboard/MenuManagement";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LoadingSpinner, LoadingGrid } from "@/components/ui/LoadingSpinner";
 import { categoryService, menuItemService } from "@/lib/services/firestore";
 import type { Category, MenuItem } from "@/lib/schemas/firestore";
 
@@ -274,74 +273,47 @@ export default function RestaurantDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <Header />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8 md:py-12">
-        {/* Welcome Section */}
-        <div className="mb-8 md:mb-12 slide-in-up">
-          <div className="bg-gradient-to-r from-orange-500/10 to-purple-500/10 rounded-2xl p-6 md:p-8 border border-orange-200/50 card-hover">
-            <h2 className="text-2xl md:text-3xl font-bold gradient-text mb-2">
-              Welcome back! 👋
-            </h2>
-            <p className="text-gray-600 text-sm md:text-base">
-              Here's what's happening with your restaurant today.
-            </p>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="fade-in">
-          <StatsCards
-            activeOrders={orders.length}
-            todayRevenue={1247}
-            deliveries={8}
-            avgDeliveryTime={28}
-          />
-        </div>
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <StatsCards
+          activeOrders={orders.length}
+          todayRevenue={1247}
+          deliveries={8}
+          avgDeliveryTime={28}
+        />
 
         {/* Tabs for Orders and Menu */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden fade-in">
-          <Tabs defaultValue="orders" className="w-full">
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-              <TabsList className="grid w-full max-w-md grid-cols-2 bg-white shadow-sm border border-gray-200">
-                <TabsTrigger
-                  value="orders"
-                  className="text-sm font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
-                >
-                  Order Management
-                </TabsTrigger>
-                <TabsTrigger
-                  value="menu"
-                  className="text-sm font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
-                >
-                  Menu Management
-                </TabsTrigger>
-              </TabsList>
-            </div>
+        <Tabs defaultValue="orders" className="space-y-4 md:space-y-6">
+          <TabsList className="grid w-full grid-cols-2 max-w-[400px] md:max-w-[500px]">
+            <TabsTrigger value="orders" className="text-sm">
+              Order Management
+            </TabsTrigger>
+            <TabsTrigger value="menu" className="text-sm">
+              Menu Management
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="p-6">
-              <OrderManagement
-                orders={orders}
-                updateOrderStatus={updateOrderStatus}
-              />
+          <OrderManagement
+            orders={orders}
+            updateOrderStatus={updateOrderStatus}
+          />
 
-              <MenuManagement
-                menuItems={menuItems}
-                categories={categories}
-                onAddMenuItem={handleAddMenuItem}
-                onUpdateMenuItem={handleUpdateMenuItem}
-                onDeleteMenuItem={handleDeleteMenuItem}
-                onAddCategory={handleAddCategory}
-                onRemoveCategory={handleRemoveCategory}
-                onUpdateCategory={handleUpdateCategory}
-                isLoading={categoriesLoading || menuItemsLoading}
-                error={categoriesError || menuItemsError}
-              />
-            </div>
-          </Tabs>
-        </div>
+          <MenuManagement
+            menuItems={menuItems}
+            categories={categories}
+            onAddMenuItem={handleAddMenuItem}
+            onUpdateMenuItem={handleUpdateMenuItem}
+            onDeleteMenuItem={handleDeleteMenuItem}
+            onAddCategory={handleAddCategory}
+            onRemoveCategory={handleRemoveCategory}
+            onUpdateCategory={handleUpdateCategory}
+            isLoading={categoriesLoading || menuItemsLoading}
+            error={categoriesError || menuItemsError}
+          />
+        </Tabs>
       </main>
     </div>
   );
