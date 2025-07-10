@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +52,7 @@ import { formatRelativeTime, capitalizeStatus } from "@/helpers/helpers";
 import Link from "next/link";
 import { KitchenCard } from "@/components/kitchen/KitchenCard";
 import { LiveClock } from "@/components/ui/LiveClock";
+import { toast } from "react-hot-toast";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -108,6 +109,8 @@ export default function KitchenView() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const lastOrderIdRef = useRef<string | null>(null);
+  const isFirstLoad = useRef(true);
 
   // Fetch orders from Firestore
   useEffect(() => {
@@ -123,7 +126,27 @@ export default function KitchenView() {
         id: doc.id,
         ...doc.data(),
       }));
-      console.log(ordersData);
+
+      // Toast for new order
+      if (!isFirstLoad.current && ordersData.length > 0) {
+        if (
+          lastOrderIdRef.current &&
+          ordersData[0].id !== lastOrderIdRef.current
+        ) {
+          toast.success(
+            `New order received: #${
+              (ordersData[0] as any).orderNumber || ordersData[0].id
+            }`,
+            {
+              icon: "🛎️",
+              duration: 5000,
+            }
+          );
+        }
+      }
+      lastOrderIdRef.current = ordersData[0]?.id || null;
+      isFirstLoad.current = false;
+
       setOrders(ordersData);
       setIsLoading(false);
     });

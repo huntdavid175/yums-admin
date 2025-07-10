@@ -90,7 +90,7 @@ export function SoundNotificationManager() {
     }
 
     try {
-      console.log("Playing notification sound...");
+      // console.log("Playing notification sound...");
 
       // Try HTML5 Audio first
       if (audioRef.current) {
@@ -102,7 +102,7 @@ export function SoundNotificationManager() {
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              console.log("Notification sound played successfully");
+              // console.log("Notification sound played successfully");
             })
             .catch((error) => {
               console.error("Error playing sound:", error);
@@ -161,7 +161,7 @@ export function SoundNotificationManager() {
 
   // Monitor orders for new arrivals
   useEffect(() => {
-    console.log("Setting up order listener...");
+    // console.log("Setting up order listener...");
     const db = getFirestore(firebaseApp);
     const ordersQuery = query(
       collection(db, "orders"),
