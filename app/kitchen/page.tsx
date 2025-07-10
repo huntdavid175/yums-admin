@@ -114,7 +114,7 @@ export default function KitchenView() {
     const db = getFirestore(firebaseApp);
     const q = query(
       collection(db, "orders"),
-      orderBy("createdAt", "asc"),
+      orderBy("createdAt", "desc"),
       limit(50)
     );
 
@@ -123,6 +123,7 @@ export default function KitchenView() {
         id: doc.id,
         ...doc.data(),
       }));
+      console.log(ordersData);
       setOrders(ordersData);
       setIsLoading(false);
     });

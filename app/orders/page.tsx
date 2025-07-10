@@ -52,7 +52,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-
+import { Header } from "@/components/dashboard/Header";
 import {
   getFirestore,
   collection,
@@ -75,18 +75,18 @@ import { formatRelativeTime, capitalizeStatus } from "@/helpers/helpers";
 const getStatusColor = (status: string) => {
   switch (status) {
     case "pending":
-      return "bg-blue-100 text-blue-800";
+      return "bg-blue-100 text-blue-800 shadow-blue-200";
     case "preparing":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-yellow-100 text-yellow-800 shadow-yellow-200";
     case "ready":
-      return "bg-green-100 text-green-800";
+      return "bg-green-100 text-green-800 shadow-green-200";
     case "delivered":
     case "completed":
-      return "bg-gray-100 text-gray-800";
+      return "bg-gray-100 text-gray-800 shadow-gray-200";
     case "cancelled":
-      return "bg-red-100 text-red-800";
+      return "bg-red-100 text-red-800 shadow-red-200";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "bg-gray-100 text-gray-800 shadow-gray-200";
   }
 };
 
@@ -94,7 +94,6 @@ const statusOrder = ["pending", "preparing", "ready", "delivered"];
 
 export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  //   const [dialogOpen, setDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelOrder, setCancelOrder] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -103,12 +102,10 @@ export default function OrdersPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
 
-  // Update current time every second for real-time relative time
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
@@ -132,11 +129,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const db = getFirestore(firebaseApp);
-
-    // Reset loading state when filter changes
     setIsLoading(true);
-
-    // Build query based on status filter
     let q;
     if (statusFilter === "all") {
       q = query(
@@ -152,31 +145,17 @@ export default function OrdersPage() {
         limit(10)
       );
     }
-
-    // Note: If you want to restore ordering, create this index in Firebase Console:
-    // Collection: orders
-    // Fields: status (Ascending), createdAt (Descending)
-    // Query scope: Collection
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      console.log("Fetched orders:", ordersData);
-      console.log("Current status filter:", statusFilter);
-      console.log(
-        "Orders with statuses:",
-        ordersData.map((order: any) => ({ id: order.id, status: order.status }))
-      );
       setOrders(ordersData);
       setIsLoading(false);
     });
-
     return () => unsubscribe();
   }, [statusFilter]);
 
-  // Update selectedOrder when orders change
   useEffect(() => {
     if (selectedOrder) {
       const updatedOrder = orders.find(
@@ -189,113 +168,37 @@ export default function OrdersPage() {
   }, [orders, selectedOrder]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-4">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center space-x-4">
-            <ChefHat className="h-8 w-8 text-orange-600" />
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-                RestaurantPro
-              </h1>
-              <p className="text-xs md:text-sm text-gray-500">
-                Delivery & Takeaway Management
-              </p>
-            </div>
-          </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link
-              href="/"
-              className="text-gray-700 hover:text-orange-600 font-medium"
-            >
-              Dashboard
-            </Link>
-            <Link href="/orders" className="text-orange-600 font-medium">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <Header />
+      <main className="max-w-7xl mx-auto px-4 py-8 md:py-12">
+        {/* Welcome Section */}
+        <div className="mb-8 md:mb-12 slide-in-up">
+          <div className="bg-gradient-to-r from-orange-500/10 to-purple-500/10 rounded-2xl p-6 md:p-8 border border-orange-200/50 card-hover">
+            <h2 className="text-2xl md:text-3xl font-bold gradient-text mb-2">
               All Orders
-            </Link>
-            <Link
-              href="/kitchen"
-              className="text-gray-700 hover:text-orange-600 font-medium"
-            >
-              Kitchen View
-            </Link>
-          </nav>
-
-          {/* Mobile & Desktop Right Section */}
-          <div className="flex items-center space-x-2 md:space-x-4">
-            {/* Mobile Navigation */}
-            <div className="md:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <Link href="/" className="w-full">
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <a href="/orders" className="w-full">
-                      All Orders
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <a href="/kitchen" className="w-full">
-                      Kitchen View
-                    </a>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Desktop Only - Notifications and User */}
-            <div className="hidden md:flex items-center space-x-4">
-              <Button variant="outline" size="icon">
-                <Bell className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">A</span>
-                </div>
-                <span className="text-sm font-medium">Admin</span>
-              </div>
-            </div>
+            </h2>
+            <p className="text-gray-600 text-sm md:text-base">
+              Manage delivery and takeaway orders
+            </p>
           </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-            All Orders
-          </h2>
-          <p className="text-gray-600">Manage delivery and takeaway orders</p>
-        </div>
-
         {/* Filters and Search */}
-        <Card className="mb-6">
+        <Card className="mb-8 glass border-0 shadow-lg fade-in">
           <CardContent className="p-4 md:p-6">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row md:flex-row gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-orange-400" />
                   <Input
                     placeholder="Search orders, customer, phone..."
-                    className="pl-8"
+                    className="pl-10 input-modern glass"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <Filter className="h-4 w-4 mr-2" />
+                  <SelectTrigger className="w-full sm:w-[180px] input-modern glass">
+                    <Filter className="h-4 w-4 mr-2 text-orange-400" />
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -311,14 +214,14 @@ export default function OrdersPage() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto bg-transparent"
+                  className="w-full sm:w-auto bg-white/70 hover:bg-orange-100 text-orange-700 font-semibold rounded-lg border border-orange-200 btn-modern"
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   Date Range
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto bg-transparent"
+                  className="w-full sm:w-auto bg-white/70 hover:bg-orange-100 text-orange-700 font-semibold rounded-lg border border-orange-200 btn-modern"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export
@@ -327,14 +230,13 @@ export default function OrdersPage() {
             </div>
           </CardContent>
         </Card>
-
         {/* Orders Table */}
-        <Card>
+        <Card className="glass border-0 shadow-xl fade-in">
           <CardHeader>
-            <CardTitle className="text-lg md:text-xl">
+            <CardTitle className="text-xl md:text-2xl font-bold gradient-text mb-1">
               Orders ({orders.length})
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-gray-600">
               {statusFilter === "all"
                 ? "All orders"
                 : `Orders with status: ${statusFilter}`}
@@ -350,36 +252,46 @@ export default function OrdersPage() {
                   <p className="text-gray-500">
                     {statusFilter === "all"
                       ? "No orders found"
-                      : `No orders with status "${statusFilter}" found`}
+                      : `No orders with status \"${statusFilter}\" found`}
                   </p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
-                  {orders.map((order) => (
-                    <Card key={order.id} className="p-4">
+                  {orders.map((order, idx) => (
+                    <Card
+                      key={order.id}
+                      className="p-4 bg-gradient-to-br from-orange-50 to-purple-50 rounded-2xl shadow-lg card-hover fade-in"
+                      style={{ animationDelay: `${idx * 60}ms` }}
+                    >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">
+                          <span className="font-semibold text-orange-700">
                             ORD-#{order.orderNumber}
                           </span>
                           <div className="flex items-center gap-2">
                             <Badge
                               variant="outline"
-                              className="text-xs capitalize"
+                              className="text-xs capitalize px-2 py-1 rounded-full border-orange-200 bg-orange-100 text-orange-700 font-semibold shadow-sm"
                             >
                               {order.orderType}
                             </Badge>
-                            <Badge className={getStatusColor(order.status)}>
+                            <Badge
+                              className={`px-3 py-1 rounded-full font-semibold shadow ${getStatusColor(
+                                order.status
+                              )}`}
+                            >
                               {capitalizeStatus(order.status)}
                             </Badge>
                           </div>
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium">{order.customerName}</p>
+                            <p className="font-medium text-gray-900">
+                              {order.customerName}
+                            </p>
                             <a
                               href={`tel:${order.customerPhone}`}
-                              className="text-blue-600"
+                              className="text-blue-600 hover:text-blue-800 transition-colors"
                             >
                               <Phone className="h-4 w-4" />
                             </a>
@@ -393,14 +305,14 @@ export default function OrdersPage() {
                               <p className="text-sm text-gray-600">
                                 {order?.deliveryAddress?.street}
                               </p>
-                              <p className="text-xs text-orange-600">
+                              <p className="text-xs text-orange-600 font-semibold">
                                 {order.estimatedDelivery}
                               </p>
                             </div>
                           </div>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 line-clamp-2">
+                          <p className="text-sm text-gray-700 line-clamp-2">
                             {order.items
                               .map(
                                 (item: any) => `${item.quantity}x ${item.name}`
@@ -408,7 +320,7 @@ export default function OrdersPage() {
                               .join(", ")}
                           </p>
                           <div className="flex items-center justify-between mt-2">
-                            <span className="font-medium">
+                            <span className="font-bold text-lg text-orange-700">
                               GH₵{order.total.toFixed(2)}
                             </span>
                             <span className="text-sm text-gray-500">
@@ -427,138 +339,186 @@ export default function OrdersPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="flex-1 bg-transparent"
+                                className="flex-1 bg-white/70 hover:bg-orange-100 text-orange-700 font-semibold rounded-lg border border-orange-200 transition-all"
                                 onClick={() => setSelectedOrder(order)}
                               >
                                 <Eye className="h-4 w-4 mr-2" />
                                 View
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle>
+                            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white border-0 shadow-2xl rounded-2xl">
+                              <DialogHeader className="pb-6">
+                                <DialogTitle className="text-2xl font-bold gradient-text flex items-center gap-2">
+                                  <div className="w-2 h-8 bg-gradient-to-b from-orange-500 to-orange-600 rounded-full"></div>
                                   Order Details - ORD-#
                                   {selectedOrder?.orderNumber}
                                 </DialogTitle>
-                                <DialogDescription>
+                                <DialogDescription className="text-gray-600 mt-2">
                                   Complete order information and delivery
                                   details
                                 </DialogDescription>
                               </DialogHeader>
                               {selectedOrder && (
                                 <div className="space-y-6">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <h4 className="font-semibold mb-2">
-                                        Customer Information
-                                      </h4>
-                                      <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                          <strong>Name:</strong>{" "}
-                                          {selectedOrder.customerName}
-                                          <Link
-                                            href={`tel:${selectedOrder.customerPhone}`}
-                                            className="text-blue-600"
-                                          >
-                                            <Phone className="h-4 w-4" />
-                                          </Link>
-                                        </div>
-                                        <p>
-                                          <strong>Phone:</strong>{" "}
-                                          {selectedOrder.customerPhone}
-                                        </p>
-                                        <p>
-                                          <strong>Type:</strong>{" "}
-                                          {selectedOrder.orderType}
-                                        </p>
+                                  {/* Status Overview Card */}
+                                  <div className="bg-gradient-to-r from-orange-50 to-purple-50 rounded-xl p-4 border border-orange-200/50">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h3 className="font-semibold text-gray-900 mb-1">
+                                          Order Status
+                                        </h3>
+                                        <Badge
+                                          className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg ${getStatusColor(
+                                            selectedOrder.status
+                                          )}`}
+                                        >
+                                          {capitalizeStatus(
+                                            selectedOrder.status
+                                          )}
+                                        </Badge>
                                       </div>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-semibold mb-2">
-                                        Order Information
-                                      </h4>
-                                      <div className="space-y-1">
-                                        <p>
-                                          <strong>Order ID:</strong>{" "}
-                                          {selectedOrder.id}
+                                      <div className="text-right">
+                                        <p className="text-sm text-gray-600">
+                                          Order Time
                                         </p>
-                                        <p>
-                                          <strong>Status:</strong>{" "}
-                                          <Badge
-                                            className={getStatusColor(
-                                              selectedOrder.status
-                                            )}
-                                          >
-                                            {capitalizeStatus(
-                                              selectedOrder.status
-                                            )}
-                                          </Badge>
-                                        </p>
-                                        <p>
-                                          <strong>Time:</strong>{" "}
+                                        <p className="font-semibold text-gray-900">
                                           {formatRelativeTime(
                                             selectedOrder.paidAt,
                                             currentTime
                                           )}
                                         </p>
-                                        <p>
-                                          <strong>Total:</strong> GH₵
-                                          {selectedOrder.total.toFixed(2)}
-                                        </p>
                                       </div>
                                     </div>
                                   </div>
 
-                                  <div>
-                                    <h4 className="font-semibold mb-2 flex items-center gap-2">
-                                      <MapPin className="h-4 w-4" />
-                                      Delivery Information
-                                    </h4>
-                                    <div className="p-3 bg-gray-50 rounded space-y-2">
-                                      <p>
-                                        <strong>Address:</strong>{" "}
-                                        {selectedOrder?.deliveryAddress?.street}
-                                      </p>
-                                      <p>
-                                        <strong>Estimated Time:</strong>{" "}
-                                        {selectedOrder.estimatedDelivery}
-                                      </p>
-                                      {selectedOrder.deliveryFee > 0 && (
-                                        <p>
-                                          <strong>Delivery Fee:</strong> $
-                                          {selectedOrder.deliveryFee.toFixed(2)}
-                                        </p>
-                                      )}
-                                    </div>
+                                  {/* Customer & Order Info Cards */}
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <Card className="border border-gray-200 shadow-sm">
+                                      <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <Phone className="h-3 w-3 text-blue-600" />
+                                          </div>
+                                          Customer Information
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-600">
+                                            Name
+                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium text-gray-900">
+                                              {selectedOrder.customerName}
+                                            </span>
+                                            <Link
+                                              href={`tel:${selectedOrder.customerPhone}`}
+                                              className="text-blue-600 hover:text-blue-800 transition-colors p-1 rounded-full hover:bg-blue-50"
+                                              title="Call customer"
+                                            >
+                                              <Phone className="h-4 w-4" />
+                                            </Link>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-600">
+                                            Phone
+                                          </span>
+                                          <span className="font-medium text-gray-900">
+                                            {selectedOrder.customerPhone}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-600">
+                                            Order Type
+                                          </span>
+                                          <Badge
+                                            variant="outline"
+                                            className="px-2 py-1 rounded-full border-orange-200 bg-orange-100 text-orange-700 font-semibold text-xs"
+                                          >
+                                            {selectedOrder.orderType}
+                                          </Badge>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+
+                                    <Card className="border border-gray-200 shadow-sm">
+                                      <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                            <ChefHat className="h-3 w-3 text-green-600" />
+                                          </div>
+                                          Order Information
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-600">
+                                            Order ID
+                                          </span>
+                                          <span className="font-mono text-sm font-medium text-gray-900">
+                                            {selectedOrder.id}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-600">
+                                            Total Amount
+                                          </span>
+                                          <span className="font-bold text-lg text-orange-700">
+                                            GH₵{selectedOrder.total.toFixed(2)}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-600">
+                                            Items Count
+                                          </span>
+                                          <span className="font-medium text-gray-900">
+                                            {selectedOrder.items.length} items
+                                          </span>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
                                   </div>
 
-                                  <div>
-                                    <h4 className="font-semibold mb-2">
-                                      Order Items
-                                    </h4>
-                                    <div className="space-y-2">
-                                      {selectedOrder.items.map(
-                                        (item: any, index: number) => (
-                                          <div
-                                            key={index}
-                                            className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                                          >
-                                            <span>
-                                              {item.quantity}x {item.name}
-                                            </span>
-                                            <span className="font-medium">
-                                              $
-                                              {(
-                                                item.quantity * item.price
-                                              ).toFixed(2)}
-                                            </span>
-                                          </div>
-                                        )
-                                      )}
+                                  {/* Delivery Information Card */}
+                                  <Card className="border border-gray-200 shadow-sm">
+                                    <CardHeader className="pb-3">
+                                      <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                        <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                                          <MapPin className="h-3 w-3 text-purple-600" />
+                                        </div>
+                                        Delivery Information
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                      <div className="flex items-start gap-3">
+                                        <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                        <div className="flex-1">
+                                          <p className="text-sm text-gray-600 mb-1">
+                                            Delivery Address
+                                          </p>
+                                          <p className="font-medium text-gray-900">
+                                            {
+                                              selectedOrder?.deliveryAddress
+                                                ?.street
+                                            }
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-sm text-gray-600">
+                                          Estimated Time
+                                        </span>
+                                        <span className="font-medium text-orange-700">
+                                          {selectedOrder.estimatedDelivery}
+                                        </span>
+                                      </div>
                                       {selectedOrder.deliveryFee > 0 && (
-                                        <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                                          <span>Delivery Fee</span>
-                                          <span className="font-medium">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-600">
+                                            Delivery Fee
+                                          </span>
+                                          <span className="font-medium text-gray-900">
                                             GH₵
                                             {selectedOrder.deliveryFee.toFixed(
                                               2
@@ -566,61 +526,134 @@ export default function OrdersPage() {
                                           </span>
                                         </div>
                                       )}
-                                      <div className="flex justify-between items-center p-2 bg-green-50 rounded font-bold">
-                                        <span>Total</span>
-                                        <span>
-                                          GH₵{selectedOrder.total.toFixed(2)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
+                                    </CardContent>
+                                  </Card>
 
+                                  {/* Order Items Card */}
+                                  <Card className="border border-gray-200 shadow-sm">
+                                    <CardHeader className="pb-3">
+                                      <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                        <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                                          <ChefHat className="h-3 w-3 text-yellow-600" />
+                                        </div>
+                                        Order Items
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="space-y-3">
+                                        {selectedOrder.items.map(
+                                          (item: any, index: number) => (
+                                            <div
+                                              key={index}
+                                              className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100"
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                                                  <span className="text-xs font-bold text-orange-700">
+                                                    {item.quantity}
+                                                  </span>
+                                                </div>
+                                                <span className="font-medium text-gray-900">
+                                                  {item.name}
+                                                </span>
+                                              </div>
+                                              <span className="font-bold text-orange-700">
+                                                GH₵
+                                                {(
+                                                  item.quantity * item.price
+                                                ).toFixed(2)}
+                                              </span>
+                                            </div>
+                                          )
+                                        )}
+                                        {selectedOrder.deliveryFee > 0 && (
+                                          <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                            <span className="font-medium text-gray-900">
+                                              Delivery Fee
+                                            </span>
+                                            <span className="font-bold text-blue-700">
+                                              GH₵
+                                              {selectedOrder.deliveryFee.toFixed(
+                                                2
+                                              )}
+                                            </span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between items-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                                          <span className="font-bold text-gray-900">
+                                            Total
+                                          </span>
+                                          <span className="font-bold text-xl text-green-700">
+                                            GH₵{selectedOrder.total.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+
+                                  {/* Special Notes Card */}
                                   {selectedOrder.notes && (
-                                    <div>
-                                      <h4 className="font-semibold mb-2">
-                                        Special Notes
-                                      </h4>
-                                      <p className="text-sm bg-yellow-50 p-3 rounded">
-                                        {selectedOrder.notes}
-                                      </p>
-                                    </div>
+                                    <Card className="border border-yellow-200 shadow-sm bg-yellow-50/30">
+                                      <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                          <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                                            <span className="text-xs font-bold text-yellow-700">
+                                              !
+                                            </span>
+                                          </div>
+                                          Special Notes
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent>
+                                        <p className="text-gray-700 bg-yellow-100 p-3 rounded-lg border border-yellow-200">
+                                          {selectedOrder.notes}
+                                        </p>
+                                      </CardContent>
+                                    </Card>
                                   )}
 
-                                  <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                                    {(() => {
-                                      const currentIndex = statusOrder.indexOf(
-                                        selectedOrder.status
-                                      );
-                                      return statusOrder
-                                        .slice(currentIndex + 1)
-                                        .map((nextStatus) => (
-                                          <Button
-                                            key={nextStatus}
-                                            onClick={() =>
-                                              updateOrderStatus(
-                                                selectedOrder.id,
+                                  {/* Action Buttons */}
+                                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                    <h4 className="font-semibold text-gray-900 mb-3">
+                                      Order Actions
+                                    </h4>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                      {(() => {
+                                        const currentIndex =
+                                          statusOrder.indexOf(
+                                            selectedOrder.status
+                                          );
+                                        return statusOrder
+                                          .slice(currentIndex + 1)
+                                          .map((nextStatus) => (
+                                            <Button
+                                              key={nextStatus}
+                                              onClick={() =>
+                                                updateOrderStatus(
+                                                  selectedOrder.id,
+                                                  nextStatus
+                                                )
+                                              }
+                                              className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                                            >
+                                              {`Mark as ${capitalizeStatus(
                                                 nextStatus
-                                              )
-                                            }
-                                            className="w-full sm:w-auto"
-                                          >
-                                            {`Mark as ${capitalizeStatus(
-                                              nextStatus
-                                            )}`}
-                                          </Button>
-                                        ));
-                                    })()}
+                                              )}`}
+                                            </Button>
+                                          ));
+                                      })()}
+                                    </div>
                                   </div>
                                 </div>
                               )}
                             </DialogContent>
                           </Dialog>
-
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="outline"
                                 size="sm"
+                                className="bg-white/70 hover:bg-orange-100 text-orange-700 font-semibold rounded-lg border border-orange-200 transition-all"
                                 disabled={
                                   order.status === "delivered" ||
                                   order.status === "cancelled"
@@ -629,7 +662,10 @@ export default function OrdersPage() {
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent
+                              align="end"
+                              className="rounded-xl shadow-lg border border-orange-100"
+                            >
                               {(() => {
                                 const currentIndex = statusOrder.indexOf(
                                   order.status
@@ -642,6 +678,7 @@ export default function OrdersPage() {
                                       onClick={() =>
                                         updateOrderStatus(order.id, nextStatus)
                                       }
+                                      className="hover:bg-orange-100 hover:text-orange-900 transition-colors"
                                     >
                                       {`Mark as ${capitalizeStatus(
                                         nextStatus
@@ -652,7 +689,7 @@ export default function OrdersPage() {
                               {order.status !== "delivered" &&
                                 order.status !== "cancelled" && (
                                   <DropdownMenuItem
-                                    className="text-red-600"
+                                    className="text-red-600 hover:bg-red-100 hover:text-red-900 transition-colors"
                                     onClick={() => {
                                       setCancelOrder(order);
                                       setCancelDialogOpen(true);
@@ -670,7 +707,6 @@ export default function OrdersPage() {
                 </div>
               )}
             </div>
-
             {/* Desktop Table */}
             <div className="hidden lg:block overflow-x-auto">
               {isLoading ? (
@@ -680,37 +716,61 @@ export default function OrdersPage() {
                   <p className="text-gray-500">
                     {statusFilter === "all"
                       ? "No orders found"
-                      : `No orders with status "${statusFilter}" found`}
+                      : `No orders with status \"${statusFilter}\" found`}
                   </p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
+                <Table className="rounded-2xl overflow-hidden">
+                  <TableHeader className="bg-gradient-to-r from-orange-50 to-purple-50">
                     <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Destination</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Order ID
+                      </TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Customer
+                      </TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Type
+                      </TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Destination
+                      </TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Items
+                      </TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Total
+                      </TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Status
+                      </TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Time
+                      </TableHead>
+                      <TableHead className="font-bold text-gray-700">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">
+                    {orders.map((order, idx) => (
+                      <TableRow
+                        key={order.id}
+                        className={`transition-all duration-200 hover:bg-orange-50/60 ${
+                          idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        } fade-in`}
+                        style={{ animationDelay: `${idx * 40}ms` }}
+                      >
+                        <TableCell className="font-semibold text-orange-700">
                           ORD-#{order.orderNumber}
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium flex items-center gap-2">
+                            <div className="font-medium flex items-center gap-2 text-gray-900">
                               {order.customerName}
                               <a
                                 href={`tel:${order.customerPhone}`}
-                                className="text-blue-600"
+                                className="text-blue-600 hover:text-blue-800 transition-colors"
                               >
                                 <Phone className="h-4 w-4" />
                               </a>
@@ -721,7 +781,10 @@ export default function OrdersPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="capitalize">
+                          <Badge
+                            variant="outline"
+                            className="capitalize px-2 py-1 rounded-full border-orange-200 bg-orange-100 text-orange-700 font-semibold shadow-sm"
+                          >
                             {order.orderType}
                           </Badge>
                         </TableCell>
@@ -729,17 +792,17 @@ export default function OrdersPage() {
                           <div className="flex items-start gap-1">
                             <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                             <div>
-                              <div className="text-sm truncate">
+                              <div className="text-sm truncate text-gray-700">
                                 {order?.deliveryAddress?.street}
                               </div>
-                              <div className="text-xs text-orange-600">
+                              <div className="text-xs text-orange-600 font-semibold">
                                 {order.estimatedDelivery}
                               </div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="max-w-[200px]">
-                          <div className="truncate">
+                          <div className="truncate text-gray-700">
                             {order.items
                               .map(
                                 (item: any) => `${item.quantity}x ${item.name}`
@@ -747,11 +810,15 @@ export default function OrdersPage() {
                               .join(", ")}
                           </div>
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-bold text-lg text-orange-700">
                           GH₵{order.total.toFixed(2)}
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusColor(order.status)}>
+                          <Badge
+                            className={`px-3 py-1 rounded-full font-semibold shadow ${getStatusColor(
+                              order.status
+                            )}`}
+                          >
                             {capitalizeStatus(order.status)}
                           </Badge>
                         </TableCell>
@@ -765,141 +832,186 @@ export default function OrdersPage() {
                                 <Button
                                   variant="outline"
                                   size="icon"
+                                  className="bg-white/70 hover:bg-orange-100 text-orange-700 font-semibold rounded-lg border border-orange-200 transition-all"
                                   onClick={() => setSelectedOrder(order)}
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
-                                <DialogHeader>
-                                  <DialogTitle>
+                              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white border-0 shadow-2xl rounded-2xl">
+                                <DialogHeader className="pb-6">
+                                  <DialogTitle className="text-2xl font-bold gradient-text flex items-center gap-2">
+                                    <div className="w-2 h-8 bg-gradient-to-b from-orange-500 to-orange-600 rounded-full"></div>
                                     Order Details - ORD-#
                                     {selectedOrder?.orderNumber}
                                   </DialogTitle>
-                                  <DialogDescription>
+                                  <DialogDescription className="text-gray-600 mt-2">
                                     Complete order information and delivery
                                     details
                                   </DialogDescription>
                                 </DialogHeader>
                                 {selectedOrder && (
                                   <div className="space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div>
-                                        <h4 className="font-semibold mb-2">
-                                          Customer Information
-                                        </h4>
-                                        <div className="space-y-1">
-                                          <div className="flex items-center gap-2">
-                                            <strong>Name:</strong>{" "}
-                                            {selectedOrder.customerName}
-                                            <Link
-                                              href={`tel:${selectedOrder.customerPhone}`}
-                                              className="text-blue-600"
-                                            >
-                                              <Phone className="h-4 w-4" />
-                                            </Link>
-                                          </div>
-                                          <p>
-                                            <strong>Phone:</strong>{" "}
-                                            {selectedOrder.customerPhone}
-                                          </p>
-                                          <p>
-                                            <strong>Type:</strong>{" "}
-                                            {selectedOrder.orderType}
-                                          </p>
+                                    {/* Status Overview Card */}
+                                    <div className="bg-gradient-to-r from-orange-50 to-purple-50 rounded-xl p-4 border border-orange-200/50">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <h3 className="font-semibold text-gray-900 mb-1">
+                                            Order Status
+                                          </h3>
+                                          <Badge
+                                            className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg ${getStatusColor(
+                                              selectedOrder.status
+                                            )}`}
+                                          >
+                                            {capitalizeStatus(
+                                              selectedOrder.status
+                                            )}
+                                          </Badge>
                                         </div>
-                                      </div>
-                                      <div>
-                                        <h4 className="font-semibold mb-2">
-                                          Order Information
-                                        </h4>
-                                        <div className="space-y-1">
-                                          <p>
-                                            <strong>Order ID:</strong>{" "}
-                                            {selectedOrder.id}
+                                        <div className="text-right">
+                                          <p className="text-sm text-gray-600">
+                                            Order Time
                                           </p>
-                                          <p>
-                                            <strong>Status:</strong>{" "}
-                                            <Badge
-                                              className={getStatusColor(
-                                                selectedOrder.status
-                                              )}
-                                            >
-                                              {capitalizeStatus(
-                                                selectedOrder.status
-                                              )}
-                                            </Badge>
-                                          </p>
-                                          <p>
-                                            <strong>Time:</strong>{" "}
+                                          <p className="font-semibold text-gray-900">
                                             {formatRelativeTime(
                                               selectedOrder.paidAt,
                                               currentTime
                                             )}
                                           </p>
-                                          <p>
-                                            <strong>Total:</strong> GH₵
-                                            {selectedOrder.total.toFixed(2)}
-                                          </p>
                                         </div>
                                       </div>
                                     </div>
 
-                                    <div>
-                                      <h4 className="font-semibold mb-2 flex items-center gap-2">
-                                        <MapPin className="h-4 w-4" />
-                                        Delivery Information
-                                      </h4>
-                                      <div className="p-3 bg-gray-50 rounded space-y-2">
-                                        <p>
-                                          <strong>Address:</strong>{" "}
-                                          {
-                                            selectedOrder?.deliveryAddress
-                                              ?.street
-                                          }
-                                        </p>
-                                        <p>
-                                          <strong>Estimated Time:</strong>{" "}
-                                          {selectedOrder.estimatedDelivery}
-                                        </p>
-                                        {selectedOrder.deliveryFee > 0 && (
-                                          <p>
-                                            <strong>Delivery Fee:</strong> $
-                                            {selectedOrder.deliveryFee.toFixed(
-                                              2
-                                            )}
-                                          </p>
-                                        )}
-                                      </div>
+                                    {/* Customer & Order Info Cards */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                      <Card className="border border-gray-200 shadow-sm">
+                                        <CardHeader className="pb-3">
+                                          <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                              <Phone className="h-3 w-3 text-blue-600" />
+                                            </div>
+                                            Customer Information
+                                          </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Name
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-medium text-gray-900">
+                                                {selectedOrder.customerName}
+                                              </span>
+                                              <Link
+                                                href={`tel:${selectedOrder.customerPhone}`}
+                                                className="text-blue-600 hover:text-blue-800 transition-colors p-1 rounded-full hover:bg-blue-50"
+                                                title="Call customer"
+                                              >
+                                                <Phone className="h-4 w-4" />
+                                              </Link>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Phone
+                                            </span>
+                                            <span className="font-medium text-gray-900">
+                                              {selectedOrder.customerPhone}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Order Type
+                                            </span>
+                                            <Badge
+                                              variant="outline"
+                                              className="px-2 py-1 rounded-full border-orange-200 bg-orange-100 text-orange-700 font-semibold text-xs"
+                                            >
+                                              {selectedOrder.orderType}
+                                            </Badge>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+
+                                      <Card className="border border-gray-200 shadow-sm">
+                                        <CardHeader className="pb-3">
+                                          <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                            <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                              <ChefHat className="h-3 w-3 text-green-600" />
+                                            </div>
+                                            Order Information
+                                          </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Order ID
+                                            </span>
+                                            <span className="font-mono text-sm font-medium text-gray-900">
+                                              {selectedOrder.id}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Total Amount
+                                            </span>
+                                            <span className="font-bold text-lg text-orange-700">
+                                              GH₵
+                                              {selectedOrder.total.toFixed(2)}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Items Count
+                                            </span>
+                                            <span className="font-medium text-gray-900">
+                                              {selectedOrder.items.length} items
+                                            </span>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
                                     </div>
 
-                                    <div>
-                                      <h4 className="font-semibold mb-2">
-                                        Order Items
-                                      </h4>
-                                      <div className="space-y-2">
-                                        {selectedOrder.items.map(
-                                          (item: any, index: number) => (
-                                            <div
-                                              key={index}
-                                              className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                                            >
-                                              <span>
-                                                {item.quantity}x {item.name}
-                                              </span>
-                                              <span className="font-medium">
-                                                $
-                                                {(
-                                                  item.quantity * item.price
-                                                ).toFixed(2)}
-                                              </span>
-                                            </div>
-                                          )
-                                        )}
+                                    {/* Delivery Information Card */}
+                                    <Card className="border border-gray-200 shadow-sm">
+                                      <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                          <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                                            <MapPin className="h-3 w-3 text-purple-600" />
+                                          </div>
+                                          Delivery Information
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-3">
+                                        <div className="flex items-start gap-3">
+                                          <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <p className="text-sm text-gray-600 mb-1">
+                                              Delivery Address
+                                            </p>
+                                            <p className="font-medium text-gray-900">
+                                              {
+                                                selectedOrder?.deliveryAddress
+                                                  ?.street
+                                              }
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm text-gray-600">
+                                            Estimated Time
+                                          </span>
+                                          <span className="font-medium text-orange-700">
+                                            {selectedOrder.estimatedDelivery}
+                                          </span>
+                                        </div>
                                         {selectedOrder.deliveryFee > 0 && (
-                                          <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                                            <span>Delivery Fee</span>
-                                            <span className="font-medium">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">
+                                              Delivery Fee
+                                            </span>
+                                            <span className="font-medium text-gray-900">
                                               GH₵
                                               {selectedOrder.deliveryFee.toFixed(
                                                 2
@@ -907,62 +1019,135 @@ export default function OrdersPage() {
                                             </span>
                                           </div>
                                         )}
-                                        <div className="flex justify-between items-center p-2 bg-green-50 rounded font-bold">
-                                          <span>Total</span>
-                                          <span>
-                                            GH₵{selectedOrder.total.toFixed(2)}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
+                                      </CardContent>
+                                    </Card>
 
+                                    {/* Order Items Card */}
+                                    <Card className="border border-gray-200 shadow-sm">
+                                      <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                          <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                                            <ChefHat className="h-3 w-3 text-yellow-600" />
+                                          </div>
+                                          Order Items
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent>
+                                        <div className="space-y-3">
+                                          {selectedOrder.items.map(
+                                            (item: any, index: number) => (
+                                              <div
+                                                key={index}
+                                                className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100"
+                                              >
+                                                <div className="flex items-center gap-3">
+                                                  <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                                                    <span className="text-xs font-bold text-orange-700">
+                                                      {item.quantity}
+                                                    </span>
+                                                  </div>
+                                                  <span className="font-medium text-gray-900">
+                                                    {item.name}
+                                                  </span>
+                                                </div>
+                                                <span className="font-bold text-orange-700">
+                                                  GH₵
+                                                  {(
+                                                    item.quantity * item.price
+                                                  ).toFixed(2)}
+                                                </span>
+                                              </div>
+                                            )
+                                          )}
+                                          {selectedOrder.deliveryFee > 0 && (
+                                            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                              <span className="font-medium text-gray-900">
+                                                Delivery Fee
+                                              </span>
+                                              <span className="font-bold text-blue-700">
+                                                GH₵
+                                                {selectedOrder.deliveryFee.toFixed(
+                                                  2
+                                                )}
+                                              </span>
+                                            </div>
+                                          )}
+                                          <div className="flex justify-between items-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                                            <span className="font-bold text-gray-900">
+                                              Total
+                                            </span>
+                                            <span className="font-bold text-xl text-green-700">
+                                              GH₵
+                                              {selectedOrder.total.toFixed(2)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+
+                                    {/* Special Notes Card */}
                                     {selectedOrder.notes && (
-                                      <div>
-                                        <h4 className="font-semibold mb-2">
-                                          Special Notes
-                                        </h4>
-                                        <p className="text-sm bg-yellow-50 p-3 rounded">
-                                          {selectedOrder.notes}
-                                        </p>
-                                      </div>
+                                      <Card className="border border-yellow-200 shadow-sm bg-yellow-50/30">
+                                        <CardHeader className="pb-3">
+                                          <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                                            <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                                              <span className="text-xs font-bold text-yellow-700">
+                                                !
+                                              </span>
+                                            </div>
+                                            Special Notes
+                                          </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                          <p className="text-gray-700 bg-yellow-100 p-3 rounded-lg border border-yellow-200">
+                                            {selectedOrder.notes}
+                                          </p>
+                                        </CardContent>
+                                      </Card>
                                     )}
 
-                                    <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                                      {(() => {
-                                        const currentIndex =
-                                          statusOrder.indexOf(
-                                            selectedOrder.status
-                                          );
-                                        return statusOrder
-                                          .slice(currentIndex + 1)
-                                          .map((nextStatus) => (
-                                            <Button
-                                              key={nextStatus}
-                                              onClick={() =>
-                                                updateOrderStatus(
-                                                  selectedOrder.id,
+                                    {/* Action Buttons */}
+                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                      <h4 className="font-semibold text-gray-900 mb-3">
+                                        Order Actions
+                                      </h4>
+                                      <div className="flex flex-col sm:flex-row gap-3">
+                                        {(() => {
+                                          const currentIndex =
+                                            statusOrder.indexOf(
+                                              selectedOrder.status
+                                            );
+                                          return statusOrder
+                                            .slice(currentIndex + 1)
+                                            .map((nextStatus) => (
+                                              <Button
+                                                key={nextStatus}
+                                                onClick={() =>
+                                                  updateOrderStatus(
+                                                    selectedOrder.id,
+                                                    nextStatus
+                                                  )
+                                                }
+                                                className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                                              >
+                                                {`Mark as ${capitalizeStatus(
                                                   nextStatus
-                                                )
-                                              }
-                                              className="w-full sm:w-auto"
-                                            >
-                                              {`Mark as ${capitalizeStatus(
-                                                nextStatus
-                                              )}`}
-                                            </Button>
-                                          ));
-                                      })()}
+                                                )}`}
+                                              </Button>
+                                            ));
+                                        })()}
+                                      </div>
                                     </div>
                                   </div>
                                 )}
                               </DialogContent>
                             </Dialog>
-
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  className="bg-white/70 hover:bg-orange-100 text-orange-700 font-semibold rounded-lg border border-orange-200 transition-all"
                                   disabled={
                                     order.status === "delivered" ||
                                     order.status === "cancelled"
@@ -971,7 +1156,10 @@ export default function OrdersPage() {
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent
+                                align="end"
+                                className="rounded-xl shadow-lg border border-orange-100"
+                              >
                                 {(() => {
                                   const currentIndex = statusOrder.indexOf(
                                     order.status
@@ -987,6 +1175,7 @@ export default function OrdersPage() {
                                             nextStatus
                                           )
                                         }
+                                        className="hover:bg-orange-100 hover:text-orange-900 transition-colors"
                                       >
                                         {`Mark as ${capitalizeStatus(
                                           nextStatus
@@ -994,17 +1183,18 @@ export default function OrdersPage() {
                                       </DropdownMenuItem>
                                     ));
                                 })()}
-                                {order.status !== "delivered" && (
-                                  <DropdownMenuItem
-                                    className="text-red-600"
-                                    onClick={() => {
-                                      setCancelOrder(order);
-                                      setCancelDialogOpen(true);
-                                    }}
-                                  >
-                                    Cancel Order
-                                  </DropdownMenuItem>
-                                )}
+                                {order.status !== "delivered" &&
+                                  order.status !== "cancelled" && (
+                                    <DropdownMenuItem
+                                      className="text-red-600 hover:bg-red-100 hover:text-red-900 transition-colors"
+                                      onClick={() => {
+                                        setCancelOrder(order);
+                                        setCancelDialogOpen(true);
+                                      }}
+                                    >
+                                      Cancel Order
+                                    </DropdownMenuItem>
+                                  )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1018,9 +1208,8 @@ export default function OrdersPage() {
           </CardContent>
         </Card>
       </main>
-
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white border-0 shadow-2xl rounded-2xl">
           <DialogHeader>
             <DialogTitle>Cancel Order</DialogTitle>
             <DialogDescription>
@@ -1030,11 +1219,16 @@ export default function OrdersPage() {
           <div className="flex justify-end gap-2 mt-4">
             <Button
               variant="outline"
+              className="btn-modern"
               onClick={() => setCancelDialogOpen(false)}
             >
               No, keep order
             </Button>
-            <Button variant="destructive" onClick={handleCancelOrder}>
+            <Button
+              variant="destructive"
+              className="btn-modern"
+              onClick={handleCancelOrder}
+            >
               Yes, cancel order
             </Button>
           </div>

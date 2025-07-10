@@ -1,5 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, DollarSign, MapPin, Clock } from "lucide-react";
+import {
+  ShoppingCart,
+  DollarSign,
+  MapPin,
+  Clock,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 
 interface StatsCardsProps {
   activeOrders: number;
@@ -15,55 +22,95 @@ export function StatsCards({
   avgDeliveryTime,
 }: StatsCardsProps) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6 mb-6 md:mb-8">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xs md:text-sm font-medium">
+    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8 mb-8 md:mb-12">
+      {/* Active Orders Card */}
+      <Card className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative">
+          <CardTitle className="text-sm font-semibold text-blue-700">
             Active Orders
           </CardTitle>
-          <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
+            <ShoppingCart className="h-5 w-5 text-blue-600 relative z-10" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-xl md:text-2xl font-bold">{activeOrders}</div>
-          <p className="text-xs text-muted-foreground">+2 from last hour</p>
+        <CardContent className="relative">
+          <div className="text-2xl md:text-3xl font-bold text-blue-800 mb-1">
+            {activeOrders}
+          </div>
+          <div className="flex items-center gap-1 text-xs text-blue-600">
+            <TrendingUp className="h-3 w-3" />
+            <span>+2 from last hour</span>
+          </div>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xs md:text-sm font-medium">
-            Today&apos;s Revenue
+
+      {/* Revenue Card */}
+      <Card className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-100 border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+        <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative">
+          <CardTitle className="text-sm font-semibold text-green-700">
+            Today's Revenue
           </CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
+            <DollarSign className="h-5 w-5 text-green-600 relative z-10" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-xl md:text-2xl font-bold">GH₵{todayRevenue}</div>
-          <p className="text-xs text-muted-foreground">+15% from yesterday</p>
+        <CardContent className="relative">
+          <div className="text-2xl md:text-3xl font-bold text-green-800 mb-1">
+            GH₵{todayRevenue}
+          </div>
+          <div className="flex items-center gap-1 text-xs text-green-600">
+            <TrendingUp className="h-3 w-3" />
+            <span>+15% from yesterday</span>
+          </div>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xs md:text-sm font-medium">
+
+      {/* Deliveries Card */}
+      <Card className="group relative overflow-hidden bg-gradient-to-br from-orange-50 to-amber-100 border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative">
+          <CardTitle className="text-sm font-semibold text-orange-700">
             Deliveries
           </CardTitle>
-          <MapPin className="h-4 w-4 text-muted-foreground" />
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
+            <MapPin className="h-5 w-5 text-orange-600 relative z-10" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-xl md:text-2xl font-bold">{deliveries}</div>
-          <p className="text-xs text-muted-foreground">4 takeaway</p>
+        <CardContent className="relative">
+          <div className="text-2xl md:text-3xl font-bold text-orange-800 mb-1">
+            {deliveries}
+          </div>
+          <div className="flex items-center gap-1 text-xs text-orange-600">
+            <span>4 takeaway</span>
+          </div>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xs md:text-sm font-medium">
+
+      {/* Delivery Time Card */}
+      <Card className="group relative overflow-hidden bg-gradient-to-br from-purple-50 to-indigo-100 border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative">
+          <CardTitle className="text-sm font-semibold text-purple-700">
             Avg. Delivery Time
           </CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 to-indigo-400 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
+            <Clock className="h-5 w-5 text-purple-600 relative z-10" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-xl md:text-2xl font-bold">
+        <CardContent className="relative">
+          <div className="text-2xl md:text-3xl font-bold text-purple-800 mb-1">
             {avgDeliveryTime}m
           </div>
-          <p className="text-xs text-muted-foreground">-5m from average</p>
+          <div className="flex items-center gap-1 text-xs text-purple-600">
+            <TrendingDown className="h-3 w-3" />
+            <span>-5m from average</span>
+          </div>
         </CardContent>
       </Card>
     </div>
