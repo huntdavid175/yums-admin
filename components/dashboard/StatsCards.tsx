@@ -51,7 +51,7 @@ export function StatsCards({
         <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative">
           <CardTitle className="text-sm font-semibold text-green-700">
-            Today's Revenue
+            Today&apos;s Revenue
           </CardTitle>
           <div className="relative">
             <div className="absolute -inset-1 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
