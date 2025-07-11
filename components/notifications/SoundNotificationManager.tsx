@@ -7,6 +7,7 @@ import {
   query,
   orderBy,
   onSnapshot,
+  where,
 } from "firebase/firestore";
 import firebaseApp from "@/lib/firebase";
 
@@ -161,11 +162,12 @@ export function SoundNotificationManager() {
 
   // Monitor orders for new arrivals
   useEffect(() => {
-    // console.log("Setting up order listener...");
+    console.log("Setting up order listener...");
     const db = getFirestore(firebaseApp);
     const ordersQuery = query(
       collection(db, "orders"),
-      orderBy("createdAt", "desc")
+      where("status", "in", ["pending", "preparing", "ready", "delivered"])
+      // orderBy("createdAt", "desc") // Temporarily removed for indexing
     );
 
     const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
@@ -174,8 +176,32 @@ export function SoundNotificationManager() {
         ...doc.data(),
       }));
 
+      console.log("SoundNotificationManager: Received orders:", orders.length);
+      console.log(
+        "SoundNotificationManager: Last order ID:",
+        lastOrderIdRef.current
+      );
+
       if (orders.length > 0) {
-        const latestOrder = orders[0]; // Most recent order
+        // Since we're not using orderBy, find the most recent order
+        const latestOrder = orders.reduce((latest, current) => {
+          const latestTime =
+            (latest as any).createdAt?.toDate?.() ||
+            new Date((latest as any).createdAt);
+          const currentTime =
+            (current as any).createdAt?.toDate?.() ||
+            new Date((current as any).createdAt);
+          return currentTime > latestTime ? current : latest;
+        });
+
+        console.log(
+          "SoundNotificationManager: Latest order ID:",
+          latestOrder.id
+        );
+        console.log(
+          "SoundNotificationManager: Latest order status:",
+          (latestOrder as any).status
+        );
 
         // Check for new orders (skip on initial load)
         if (
@@ -184,6 +210,13 @@ export function SoundNotificationManager() {
         ) {
           console.log("New order detected! Playing notification sound...");
           playNotificationSound();
+        } else {
+          console.log(
+            "No new order detected. Last ID:",
+            lastOrderIdRef.current,
+            "Current ID:",
+            latestOrder.id
+          );
         }
 
         // Update the last order ID

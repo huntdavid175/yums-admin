@@ -46,6 +46,7 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import firebaseApp from "@/lib/firebase";
 import { formatRelativeTime, capitalizeStatus } from "@/helpers/helpers";
@@ -117,8 +118,9 @@ export default function KitchenView() {
     const db = getFirestore(firebaseApp);
     const q = query(
       collection(db, "orders"),
-      orderBy("createdAt", "desc"),
-      limit(50)
+      where("status", "in", ["pending", "preparing", "ready", "delivered"]),
+      orderBy("createdAt", "asc") // Temporarily removed for indexing
+      // limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
