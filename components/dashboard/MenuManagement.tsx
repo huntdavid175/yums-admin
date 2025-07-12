@@ -38,6 +38,26 @@ import { Edit, MoreHorizontal, Plus, Settings, Trash2 } from "lucide-react";
 import { MenuItemForm } from "./MenuItemForm";
 import type { MenuItem, Category } from "@/lib/schemas/firestore";
 import { toast } from "react-hot-toast";
+import { deleteImageFromCloudinary } from "@/app/cloudinary-actions";
+
+// Helper function to extract public ID from Cloudinary URL
+function extractPublicIdFromCloudinaryUrl(url: string): string | null {
+  try {
+    // Cloudinary URL format: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/public_id.ext
+    const urlParts = url.split("/");
+    const uploadIndex = urlParts.findIndex((part) => part === "upload");
+    if (uploadIndex === -1) return null;
+
+    // Get everything after 'upload' and before the file extension
+    const pathAfterUpload = urlParts.slice(uploadIndex + 2).join("/");
+    const publicId = pathAfterUpload.split(".")[0]; // Remove file extension
+
+    return publicId;
+  } catch (error) {
+    console.error("Error extracting public ID from Cloudinary URL:", error);
+    return null;
+  }
+}
 
 interface MenuManagementProps {
   menuItems: MenuItem[];
@@ -189,6 +209,28 @@ export function MenuManagement({
   const handleDeleteItem = async (item: MenuItem) => {
     if (confirm("Are you sure you want to delete this menu item?")) {
       try {
+        // Delete image from Cloudinary if it exists
+        if (item.image && item.image.includes("cloudinary.com")) {
+          const publicId = extractPublicIdFromCloudinaryUrl(item.image);
+
+          if (publicId) {
+            try {
+              const result = await deleteImageFromCloudinary(publicId);
+              if (result.success) {
+                console.log("Image deleted from Cloudinary successfully");
+              } else {
+                console.warn(
+                  "Failed to delete image from Cloudinary:",
+                  result.error
+                );
+              }
+            } catch (error) {
+              console.error("Error deleting image from Cloudinary:", error);
+            }
+          }
+        }
+
+        // Delete the menu item
         await onDeleteMenuItem(item.id!);
         toast.success("Menu item deleted successfully!");
       } catch (err) {

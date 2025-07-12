@@ -10,11 +10,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Upload, X, Image as ImageIcon } from "lucide-react";
 import type { MenuItem } from "@/lib/schemas/firestore";
+import {
+  uploadImageToCloudinary,
+  deleteImageFromCloudinary,
+} from "@/app/cloudinary-actions";
+import { toast } from "react-hot-toast";
 
 function toId(str: string) {
   return str.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+// Helper function to extract public ID from Cloudinary URL
+function extractPublicIdFromCloudinaryUrl(url: string): string | null {
+  try {
+    // Cloudinary URL format: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/public_id.ext
+    const urlParts = url.split("/");
+    const uploadIndex = urlParts.findIndex((part) => part === "upload");
+    if (uploadIndex === -1) return null;
+
+    // Get everything after 'upload' and before the file extension
+    const pathAfterUpload = urlParts.slice(uploadIndex + 2).join("/");
+    const publicId = pathAfterUpload.split(".")[0]; // Remove file extension
+
+    return publicId;
+  } catch (error) {
+    console.error("Error extracting public ID from Cloudinary URL:", error);
+    return null;
+  }
 }
 
 interface MenuItemFormProps {
@@ -53,6 +77,12 @@ export function MenuItemForm({
     image: "",
   });
 
+  // Image upload states
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
   useEffect(() => {
     if (initialItem) {
       setFormData({
@@ -78,10 +108,35 @@ export function MenuItemForm({
               }))
             : [{ name: "", price: "" }],
       });
+
+      // Set image preview if initial item has image
+      if (initialItem.image) {
+        setImagePreview(initialItem.image);
+      }
     }
   }, [initialItem]);
 
-  const resetForm = () => {
+  const resetForm = async (shouldDeleteImage: boolean = true) => {
+    // Only delete image from Cloudinary if explicitly requested
+    if (
+      shouldDeleteImage &&
+      formData.image &&
+      formData.image.includes("cloudinary.com")
+    ) {
+      const publicId = extractPublicIdFromCloudinaryUrl(formData.image);
+
+      if (publicId) {
+        try {
+          await deleteImageFromCloudinary(publicId);
+        } catch (error) {
+          console.error(
+            "Error deleting image from Cloudinary during reset:",
+            error
+          );
+        }
+      }
+    }
+
     setFormData({
       name: "",
       category: "",
@@ -94,6 +149,129 @@ export function MenuItemForm({
       extras: [{ name: "", price: "" }],
     });
     setErrors({ name: "", category: "", price: "", image: "" });
+    setImageFile(null);
+    setImagePreview("");
+  };
+
+  // Image upload handlers
+  const handleImageUpload = async (file: File) => {
+    if (file && file.type.startsWith("image/")) {
+      // Validate file size before upload
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast.error("Image size must be less than 10MB");
+        return;
+      }
+
+      setImageFile(file);
+      setIsUploading(true);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      try {
+        // Create FormData for server action
+        const formData = new FormData();
+        formData.append("file", file);
+
+        // Upload using server action
+        const result = await uploadImageToCloudinary(formData);
+
+        if (result.success && result.url) {
+          setFormData((prev) => ({ ...prev, image: result.url! }));
+          toast.success("Image uploaded successfully!");
+          console.log("Image uploaded successfully:", result.url);
+        } else {
+          throw new Error(result.error || "Upload failed");
+        }
+      } catch (error) {
+        console.error("Failed to upload image:", error);
+
+        // Show specific error messages based on error type
+        if (error instanceof Error) {
+          if (error.message.includes("Body exceeded")) {
+            toast.error(
+              "Image file is too large. Please choose a smaller image."
+            );
+          } else if (error.message.includes("Failed to upload")) {
+            toast.error("Failed to upload image. Please try again.");
+          } else {
+            toast.error(`Upload failed: ${error.message}`);
+          }
+        } else {
+          toast.error("An unexpected error occurred during upload.");
+        }
+
+        // Remove the preview and file
+        setImageFile(null);
+        setImagePreview("");
+        setFormData((prev) => ({ ...prev, image: "" }));
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      toast.error("Please select a valid image file (JPG, PNG, WebP)");
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleImageUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleImageUpload(e.target.files[0]);
+    }
+  };
+
+  const removeImage = async () => {
+    // If we have a Cloudinary URL, delete it from Cloudinary
+    if (formData.image && formData.image.includes("cloudinary.com")) {
+      const publicId = extractPublicIdFromCloudinaryUrl(formData.image);
+
+      if (publicId) {
+        try {
+          const result = await deleteImageFromCloudinary(publicId);
+          if (result.success) {
+            toast.success("Image removed successfully");
+          } else {
+            console.warn(
+              "Failed to delete image from Cloudinary:",
+              result.error
+            );
+            // Still continue with local removal even if Cloudinary deletion fails
+          }
+        } catch (error) {
+          console.error("Error deleting image from Cloudinary:", error);
+          // Continue with local removal even if Cloudinary deletion fails
+        }
+      }
+    }
+
+    // Always remove from local state
+    setImageFile(null);
+    setImagePreview("");
+    setFormData((prev) => ({ ...prev, image: "" }));
   };
 
   // Dynamic array helpers
@@ -146,8 +324,9 @@ export function MenuItemForm({
     return valid;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
+
     // Prepare data for submission
     const submitData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> = {
       name: formData.name.trim(),
@@ -173,7 +352,7 @@ export function MenuItemForm({
         })),
     };
     onSubmit(submitData);
-    resetForm();
+    await resetForm(false); // Don't delete image after successful submission
   };
 
   return (
@@ -271,24 +450,93 @@ export function MenuItemForm({
         </div>
       </div>
 
-      {/* Image */}
+      {/* Image Upload */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="font-semibold text-lg border-b pb-2 flex-1">Image</h4>
-        </div>
-        <div className="space-y-3">
-          <Input
-            value={formData.image}
-            onChange={(e) =>
-              setFormData({ ...formData, image: e.target.value })
-            }
-            placeholder="Image URL or upload path"
-            className={errors.image ? "border-red-500" : ""}
-          />
-          {errors.image && (
-            <span className="text-xs text-red-600">{errors.image}</span>
-          )}
-        </div>
+        <h4 className="font-semibold text-lg border-b pb-2">Item Image *</h4>
+
+        {imagePreview ? (
+          // Image Preview
+          <div className="space-y-3">
+            <div className="relative inline-block">
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="w-48 h-48 object-cover rounded-lg border-2 border-gray-200"
+              />
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="absolute -top-2 -right-2 h-6 w-6"
+                onClick={removeImage}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <p className="text-sm text-gray-600">
+              {imageFile ? `Selected: ${imageFile.name}` : "Image loaded"}
+            </p>
+          </div>
+        ) : (
+          // Upload Area
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              dragActive
+                ? "border-blue-400 bg-blue-50"
+                : "border-gray-300 hover:border-gray-400"
+            } ${errors.image ? "border-red-500" : ""}`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <div className="p-3 bg-gray-100 rounded-full">
+                  <ImageIcon className="h-8 w-8 text-gray-400" />
+                </div>
+              </div>
+              <div>
+                <p className="text-lg font-medium text-gray-700">
+                  Upload Item Image
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Drag and drop an image here, or click to browse
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    document.getElementById("image-upload")?.click()
+                  }
+                  disabled={isUploading}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isUploading ? "Uploading..." : "Choose Image"}
+                </Button>
+              </div>
+              <input
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleFileInput}
+                className="hidden"
+                disabled={isUploading}
+              />
+            </div>
+          </div>
+        )}
+
+        {errors.image && (
+          <span className="text-xs text-red-600">{errors.image}</span>
+        )}
+
+        <p className="text-sm text-gray-500">
+          Upload a high-quality image of your menu item. Recommended size:
+          800x600px
+        </p>
       </div>
 
       {/* Sizes */}
@@ -402,7 +650,10 @@ export function MenuItemForm({
         <Button
           variant="outline"
           className="w-full sm:w-auto bg-transparent"
-          onClick={onCancel}
+          onClick={async () => {
+            await resetForm(true); // Delete image when canceling
+            onCancel();
+          }}
         >
           Cancel
         </Button>
