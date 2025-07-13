@@ -10,13 +10,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Upload, X, Image as ImageIcon } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Upload,
+  X,
+  Image as ImageIcon,
+  Info,
+} from "lucide-react";
 import type { MenuItem } from "@/lib/schemas/firestore";
 import {
   uploadImageToCloudinary,
   deleteImageFromCloudinary,
 } from "@/app/cloudinary-actions";
 import { toast } from "react-hot-toast";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 function toId(str: string) {
   return str.trim().toLowerCase().replace(/\s+/g, "-");
@@ -405,11 +413,12 @@ export function MenuItemForm({
           </div>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="price">Base Price *</Label>
+          <Label htmlFor="price">Base Price (Normal Size) *</Label>
           <Input
             id="price"
             type="number"
             step="0.01"
+            min="0"
             value={formData.price}
             onChange={(e) =>
               setFormData({ ...formData, price: e.target.value })
@@ -420,6 +429,10 @@ export function MenuItemForm({
           {errors.price && (
             <span className="text-xs text-red-600">{errors.price}</span>
           )}
+          <p className="text-sm text-gray-500">
+            This is the price for the normal/standard size. Use size options
+            below to add variations.
+          </p>
         </div>
         <div className="grid gap-2">
           <Label htmlFor="description">Description *</Label>
@@ -542,14 +555,39 @@ export function MenuItemForm({
       {/* Sizes */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="font-semibold text-lg border-b pb-2 flex-1">
-            Size Options
-          </h4>
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold text-lg border-b pb-2 flex-1">
+              Size Options
+            </h4>
+            <InfoTooltip
+              title="How Size Pricing Works"
+              content={
+                <div className="space-y-2">
+                  <p>
+                    <strong>Negative values</strong> (e.g., -2.00): Deduct from
+                    base price
+                  </p>
+                  <p>
+                    <strong>Zero</strong> (0.00): Same as base price
+                  </p>
+                  <p>
+                    <strong>Positive values</strong> (e.g., +3.00): Add to base
+                    price
+                  </p>
+                  <p className="text-sm mt-3">
+                    <strong>Example:</strong> Base price GH₵15.00 + Small
+                    (-2.00) = GH₵13.00
+                  </p>
+                </div>
+              }
+            />
+          </div>
           <Button type="button" variant="outline" size="sm" onClick={addSize}>
             <Plus className="h-4 w-4 mr-1" />
             Add Size
           </Button>
         </div>
+
         <div className="space-y-3">
           {formData.sizes.map((size, index) => (
             <div key={index} className="flex gap-2">
@@ -564,7 +602,7 @@ export function MenuItemForm({
                 step="0.01"
                 value={size.price}
                 onChange={(e) => updateSize(index, "price", e.target.value)}
-                placeholder="Additional price"
+                placeholder="Price adjustment"
                 className="w-32"
               />
               {formData.sizes.length > 1 && (
@@ -581,21 +619,42 @@ export function MenuItemForm({
           ))}
         </div>
         <p className="text-sm text-gray-500">
-          First size is typically the base size (additional price = 0)
+          Use negative values for smaller sizes, positive for larger sizes
         </p>
       </div>
 
       {/* Extras */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="font-semibold text-lg border-b pb-2 flex-1">
-            Extra Options
-          </h4>
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold text-lg border-b pb-2 flex-1">
+              Extra Options
+            </h4>
+            <InfoTooltip
+              title="How Extra Pricing Works"
+              content={
+                <div className="space-y-2">
+                  <p>
+                    <strong>Positive values</strong> (e.g., +1.50): Add to total
+                    price
+                  </p>
+                  <p>
+                    <strong>Zero</strong> (0.00): Free extra
+                  </p>
+                  <p className="text-sm mt-3">
+                    <strong>Example:</strong> Base price GH₵15.00 + Extra Cheese
+                    (+1.50) = GH₵16.50
+                  </p>
+                </div>
+              }
+            />
+          </div>
           <Button type="button" variant="outline" size="sm" onClick={addExtra}>
             <Plus className="h-4 w-4 mr-1" />
             Add Extra
           </Button>
         </div>
+
         <div className="space-y-3">
           {formData.extras.map((extra, index) => (
             <div key={index} className="flex gap-2">
@@ -608,6 +667,7 @@ export function MenuItemForm({
               <Input
                 type="number"
                 step="0.01"
+                min="0"
                 value={extra.price}
                 onChange={(e) => updateExtra(index, "price", e.target.value)}
                 placeholder="Extra price"
@@ -626,6 +686,9 @@ export function MenuItemForm({
             </div>
           ))}
         </div>
+        <p className="text-sm text-gray-500">
+          Extras are always additional costs (positive values only)
+        </p>
       </div>
 
       {/* Availability */}

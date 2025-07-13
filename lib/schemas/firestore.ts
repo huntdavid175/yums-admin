@@ -31,7 +31,7 @@ export type PaymentStatus = z.infer<typeof PaymentStatusSchema>;
 export const SizeOptionSchema = z.object({
   id: z.string().min(1, "Size id is required"),
   name: z.string().min(1, "Size name is required"),
-  price: z.number().min(0, "Price must be non-negative"),
+  price: z.number(), // Allow negative values for size pricing adjustments
 });
 
 export type SizeOption = z.infer<typeof SizeOptionSchema>;

@@ -39,6 +39,7 @@ import { MenuItemForm } from "./MenuItemForm";
 import type { MenuItem, Category } from "@/lib/schemas/firestore";
 import { toast } from "react-hot-toast";
 import { deleteImageFromCloudinary } from "@/app/cloudinary-actions";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 // Helper function to extract public ID from Cloudinary URL
 function extractPublicIdFromCloudinaryUrl(url: string): string | null {
@@ -102,6 +103,10 @@ export function MenuManagement({
   const [isEditCategoryDialogOpen, setIsEditCategoryDialogOpen] =
     useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [deleteItemDialog, setDeleteItemDialog] = useState<{
+    isOpen: boolean;
+    item: MenuItem | null;
+  }>({ isOpen: false, item: null });
 
   // Category color generator
   const getCategoryColor = (category: Category) => {
@@ -207,36 +212,41 @@ export function MenuManagement({
   };
 
   const handleDeleteItem = async (item: MenuItem) => {
-    if (confirm("Are you sure you want to delete this menu item?")) {
-      try {
-        // Delete image from Cloudinary if it exists
-        if (item.image && item.image.includes("cloudinary.com")) {
-          const publicId = extractPublicIdFromCloudinaryUrl(item.image);
+    setDeleteItemDialog({ isOpen: true, item });
+  };
 
-          if (publicId) {
-            try {
-              const result = await deleteImageFromCloudinary(publicId);
-              if (result.success) {
-                console.log("Image deleted from Cloudinary successfully");
-              } else {
-                console.warn(
-                  "Failed to delete image from Cloudinary:",
-                  result.error
-                );
-              }
-            } catch (error) {
-              console.error("Error deleting image from Cloudinary:", error);
+  const confirmDeleteItem = async () => {
+    const item = deleteItemDialog.item;
+    if (!item) return;
+
+    try {
+      // Delete image from Cloudinary if it exists
+      if (item.image && item.image.includes("cloudinary.com")) {
+        const publicId = extractPublicIdFromCloudinaryUrl(item.image);
+
+        if (publicId) {
+          try {
+            const result = await deleteImageFromCloudinary(publicId);
+            if (result.success) {
+              console.log("Image deleted from Cloudinary successfully");
+            } else {
+              console.warn(
+                "Failed to delete image from Cloudinary:",
+                result.error
+              );
             }
+          } catch (error) {
+            console.error("Error deleting image from Cloudinary:", error);
           }
         }
-
-        // Delete the menu item
-        await onDeleteMenuItem(item.id!);
-        toast.success("Menu item deleted successfully!");
-      } catch (err) {
-        console.error("Error deleting menu item:", err);
-        toast.error("Failed to delete menu item.");
       }
+
+      // Delete the menu item
+      await onDeleteMenuItem(item.id!);
+      toast.success("Menu item deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting menu item:", err);
+      toast.error("Failed to delete menu item.");
     }
   };
 
@@ -385,12 +395,15 @@ export function MenuManagement({
                       <span className="font-medium text-blue-700">Sizes:</span>{" "}
                       <span className="text-gray-600">
                         {item.sizes
-                          .map(
-                            (size) =>
-                              `${size.name}${
-                                size.price > 0 ? ` (+$${size.price})` : ""
-                              }`
-                          )
+                          .map((size) => {
+                            const priceText =
+                              size.price > 0
+                                ? ` (+GH₵${size.price})`
+                                : size.price < 0
+                                ? ` (-GH₵${Math.abs(size.price)})`
+                                : "";
+                            return `${size.name}${priceText}`;
+                          })
                           .join(", ")}
                       </span>
                     </div>
@@ -660,6 +673,22 @@ export function MenuManagement({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Menu Item Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteItemDialog.isOpen}
+        onClose={() => setDeleteItemDialog({ isOpen: false, item: null })}
+        onConfirm={confirmDeleteItem}
+        title="Delete Menu Item"
+        description={
+          deleteItemDialog.item
+            ? `Are you sure you want to delete "${deleteItemDialog.item.name}"? This action cannot be undone and will also remove the associated image.`
+            : "Are you sure you want to delete this menu item? This action cannot be undone."
+        }
+        confirmText="Delete Item"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </TabsContent>
   );
 }
